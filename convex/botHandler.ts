@@ -21,21 +21,14 @@ export const dispatch = internalAction({
     const cmd = args.text.trim().toLowerCase();
     const appUrl = process.env.APP_URL ?? "http://localhost:5173";
 
+    const settingsUrl = `${appUrl}/dashboard`;
+    const notConnectedMsg = `Set your Telegram ID in Cart Gremlin settings to connect your account:\n${settingsUrl}`;
+
     if (cmd === "/start") {
       await telegramClient.sendMessage(
         token,
         args.chatId,
-        "Hi! I'm your grocery cart bot.\n\nCommands:\n/link — connect your account\n/list — show your item memory\n/remove <item> — remove from memory\n\nOr just send me items to add: 'add milk and eggs'"
-      );
-      return null;
-    }
-
-    if (cmd === "/link") {
-      const linkUrl = `${appUrl}/link?tgid=${args.telegramUserId}`;
-      await telegramClient.sendMessage(
-        token,
-        args.chatId,
-        `Open this link while logged into the web app to connect your account:\n${linkUrl}`
+        "Hi! I'm Cart Gremlin 🛒\n\nCommands:\n/list — show your item memory\n/remove <item> — remove from memory\n\nOr just send me items to add: 'add milk and eggs'"
       );
       return null;
     }
@@ -55,12 +48,7 @@ export const dispatch = internalAction({
 
     if (cmd === "/list") {
       if (!household) {
-        const linkUrl = `${appUrl}/link?tgid=${args.telegramUserId}`;
-        await telegramClient.sendMessage(
-          token,
-          args.chatId,
-          `Link your account first: ${linkUrl}`
-        );
+        await telegramClient.sendMessage(token, args.chatId, notConnectedMsg);
         return null;
       }
       const items = await ctx.runQuery(internal.householdItems.listForHousehold, {
@@ -76,12 +64,7 @@ export const dispatch = internalAction({
     if (cmd.startsWith("/remove ")) {
       const itemName = args.text.trim().slice(8).trim().toLowerCase();
       if (!household) {
-        const linkUrl = `${appUrl}/link?tgid=${args.telegramUserId}`;
-        await telegramClient.sendMessage(
-          token,
-          args.chatId,
-          `Link your account first: ${linkUrl}`
-        );
+        await telegramClient.sendMessage(token, args.chatId, notConnectedMsg);
         return null;
       }
       const items = await ctx.runQuery(internal.householdItems.listForHousehold, {
@@ -98,12 +81,7 @@ export const dispatch = internalAction({
     }
 
     if (!household) {
-      const linkUrl = `${appUrl}/link?tgid=${args.telegramUserId}`;
-      await telegramClient.sendMessage(
-        token,
-        args.chatId,
-        `Link your account first: ${linkUrl}`
-      );
+      await telegramClient.sendMessage(token, args.chatId, notConnectedMsg);
       return null;
     }
 
