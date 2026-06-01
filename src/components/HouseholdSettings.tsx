@@ -12,6 +12,8 @@ export default function HouseholdSettings() {
   const [targetCookies, setTargetCookies] = useState("");
   const [wegmansCookies, setWegmansCookies] = useState("");
   const [costcoCookies, setCostcoCookies] = useState("");
+  const [allowlist, setAllowlist] = useState<string[]>([]);
+  const [newAllowId, setNewAllowId] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
@@ -22,13 +24,15 @@ export default function HouseholdSettings() {
       setTargetCookies(data.household.targetSessionCookies ?? "");
       setWegmansCookies(data.household.wegmansSessionCookies ?? "");
       setCostcoCookies(data.household.costcoSessionCookies ?? "");
+      setAllowlist(data.household.telegramAllowlist ?? []);
     }
   }, [data?.household?._id]);
 
-  const save = async (section: string, patch: Record<string, string | undefined>) => {
+  const save = async (section: string, patch: Record<string, unknown>) => {
     setSaving(section);
     try {
-      await updateSettings(patch);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await updateSettings(patch as any);
       setSaved(section);
       setTimeout(() => setSaved(null), 2000);
     } finally {
@@ -134,6 +138,87 @@ export default function HouseholdSettings() {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Telegram Allowlist */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1">Telegram Allowlist</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          When the allowlist is <span className="font-medium text-gray-700">enabled</span>, the bot only responds to listed Telegram user IDs — an empty list blocks everyone.
+          When <span className="font-medium text-gray-700">disabled</span>, no restriction is applied.
+          Find your ID by messaging <span className="font-mono bg-gray-100 px-1 rounded">@userinfobot</span> on Telegram.
+        </p>
+
+        {data?.household?.telegramAllowlist === null || data?.household?.telegramAllowlist === undefined ? (
+          <div className="mb-4 flex items-center gap-3">
+            <span className="text-xs text-gray-500 italic">Allowlist disabled — no restriction.</span>
+            <button
+              onClick={() => { setAllowlist([]); save("allowlist", { telegramAllowlist: [] }); }}
+              className="px-3 py-1.5 text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg hover:bg-yellow-100"
+            >
+              Enable allowlist
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => save("allowlist", { telegramAllowlist: null })}
+            className="mb-4 px-3 py-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            Disable allowlist
+          </button>
+        )}
+
+        <div className="space-y-2 mb-3">
+          {allowlist.length === 0 && data?.household?.telegramAllowlist !== undefined && data?.household?.telegramAllowlist !== null && (
+            <p className="text-xs text-amber-600 italic">No IDs added — bot is currently blocking everyone.</p>
+          )}
+          {allowlist.map((id) => (
+            <div key={id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+              <span className="text-sm font-mono text-gray-800">{id}</span>
+              <button
+                onClick={() => setAllowlist((prev) => prev.filter((x) => x !== id))}
+                className="text-xs text-red-500 hover:text-red-700"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={newAllowId}
+            onChange={(e) => setNewAllowId(e.target.value.trim())}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newAllowId && !allowlist.includes(newAllowId)) {
+                setAllowlist((prev) => [...prev, newAllowId]);
+                setNewAllowId("");
+              }
+            }}
+            placeholder="Telegram user ID (e.g. 123456789)"
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button
+            onClick={() => {
+              if (newAllowId && !allowlist.includes(newAllowId)) {
+                setAllowlist((prev) => [...prev, newAllowId]);
+                setNewAllowId("");
+              }
+            }}
+            className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200"
+          >
+            Add
+          </button>
+        </div>
+
+        <button
+          onClick={() => save("allowlist", { telegramAllowlist: allowlist })}
+          disabled={saving === "allowlist"}
+          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-60"
+        >
+          {saving === "allowlist" ? "Saving…" : saved === "allowlist" ? "Saved ✓" : "Save Allowlist"}
+        </button>
       </div>
     </div>
   );

@@ -39,6 +39,7 @@ export default defineSchema({
     targetSessionCookies: v.optional(v.string()),
     wegmansSessionCookies: v.optional(v.string()),
     costcoSessionCookies: v.optional(v.string()),
+    telegramAllowlist: v.optional(v.array(v.string())),
   }),
 
   householdMembers: defineTable({

@@ -8,9 +8,9 @@ type ParsedIntent = {
     canonicalName: string;
     quantity: number;
     unit: string | null;
-    retailerConstraint: "amazon" | "target" | "instacart" | null;
+    retailerConstraint: "amazon" | "target" | "instacart" | "wegmans" | "costco" | null;
   }>;
-  globalRetailerConstraint: "amazon" | "target" | "instacart" | null;
+  globalRetailerConstraint: "amazon" | "target" | "instacart" | "wegmans" | "costco" | null;
 };
 
 export const parse = internalAction({
@@ -24,7 +24,7 @@ export const parse = internalAction({
       return { intent: "unknown", items: [], globalRetailerConstraint: null };
     }
 
-    const systemPrompt = `You are a grocery shopping assistant. Extract shopping intent from the user's message and respond with valid JSON only. Schema: { "intent": "add|build|list|remove|help|unknown", "items": [{ "rawText": string, "canonicalName": string (lowercase singular, e.g. 'bananas'->'banana'), "quantity": number, "unit": string|null, "retailerConstraint": "amazon"|"target"|"instacart"|null }], "globalRetailerConstraint": "amazon"|"target"|"instacart"|null }. If the message matches a known item, use its exact canonicalName. Known items: ${args.knownItemNames.join(", ")}. Intent 'add' means add items now; 'build' means build/finalize the cart; 'list' means show memory; 'remove' means delete from memory.`;
+    const systemPrompt = `You are a grocery shopping assistant. Extract shopping intent from the user's message and respond with valid JSON only. Schema: { "intent": "add|build|list|remove|help|unknown", "items": [{ "rawText": string, "canonicalName": string (lowercase singular, e.g. 'bananas'->'banana'), "quantity": number, "unit": string|null, "retailerConstraint": "amazon"|"target"|"instacart"|"wegmans"|"costco"|null }], "globalRetailerConstraint": "amazon"|"target"|"instacart"|"wegmans"|"costco"|null }. If the message matches a known item, use its exact canonicalName. Known items: ${args.knownItemNames.join(", ")}. Intent 'add' means add items now; 'build' means build/finalize the cart; 'list' means show memory; 'remove' means delete from memory.`;
 
     const input = [
       {

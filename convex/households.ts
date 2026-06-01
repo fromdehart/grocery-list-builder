@@ -48,6 +48,7 @@ export const updateSettings = mutation({
     targetSessionCookies: v.optional(v.string()),
     wegmansSessionCookies: v.optional(v.string()),
     costcoSessionCookies: v.optional(v.string()),
+    telegramAllowlist: v.optional(v.union(v.null(), v.array(v.string()))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -59,13 +60,17 @@ export const updateSettings = mutation({
       .first();
     if (!member) throw new ConvexError("No household found");
 
-    const patch: Record<string, string | undefined> = {};
+    const patch: Record<string, unknown> = {};
     if (args.instacartApiKey !== undefined) patch.instacartApiKey = args.instacartApiKey;
     if (args.playwrightWorkerUrl !== undefined) patch.playwrightWorkerUrl = args.playwrightWorkerUrl;
     if (args.amazonSessionCookies !== undefined) patch.amazonSessionCookies = args.amazonSessionCookies;
     if (args.targetSessionCookies !== undefined) patch.targetSessionCookies = args.targetSessionCookies;
     if (args.wegmansSessionCookies !== undefined) patch.wegmansSessionCookies = args.wegmansSessionCookies;
     if (args.costcoSessionCookies !== undefined) patch.costcoSessionCookies = args.costcoSessionCookies;
+    // null = disable allowlist (remove field); array = set allowlist
+    if (args.telegramAllowlist !== undefined) {
+      patch.telegramAllowlist = args.telegramAllowlist === null ? undefined : args.telegramAllowlist;
+    }
 
     await ctx.db.patch(member.householdId, patch);
     return null;
@@ -82,7 +87,12 @@ export const getByTelegramUserId = internalQuery({
       )
       .first();
     if (!member) return null;
-    return { householdId: member.householdId, userId: member.userId };
+    const household = await ctx.db.get(member.householdId);
+    return {
+      householdId: member.householdId,
+      userId: member.userId,
+      telegramAllowlist: household?.telegramAllowlist ?? null,
+    };
   },
 });
 

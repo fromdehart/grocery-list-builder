@@ -44,6 +44,15 @@ export const dispatch = internalAction({
       telegramUserId: args.telegramUserId,
     });
 
+    // Allowlist check — if the allowlist exists (even empty), sender must be in it
+    if (household) {
+      const allowlist = household.telegramAllowlist;
+      if (allowlist !== null && allowlist !== undefined && !allowlist.includes(args.telegramUserId)) {
+        await telegramClient.sendMessage(token, args.chatId, "Sorry, you're not authorized to use this bot.");
+        return null;
+      }
+    }
+
     if (cmd === "/list") {
       if (!household) {
         const linkUrl = `${appUrl}/link?tgid=${args.telegramUserId}`;
