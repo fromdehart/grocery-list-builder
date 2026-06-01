@@ -2,6 +2,63 @@ import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
+const retailerValidator = v.union(
+  v.literal("amazon"),
+  v.literal("target"),
+  v.literal("wegmans"),
+  v.literal("costco"),
+);
+
+export const searchProduct = internalAction({
+  args: {
+    householdId: v.id("households"),
+    retailer: retailerValidator,
+    canonicalName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const household = await ctx.runQuery(internal.households.getHouseholdById, {
+      householdId: args.householdId,
+    });
+
+    const workerUrl = household?.playwrightWorkerUrl;
+    if (!workerUrl) return { topResult: null, searchUrl: null };
+
+    const cookiesMap: Record<string, string | undefined> = {
+      amazon: household?.amazonSessionCookies,
+      target: household?.targetSessionCookies,
+      wegmans: household?.wegmansSessionCookies,
+      costco: household?.costcoSessionCookies,
+    };
+
+    try {
+      const res = await fetch(`${workerUrl}/search`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Worker-Secret": process.env.PLAYWRIGHT_WORKER_SECRET ?? "",
+        },
+        body: JSON.stringify({
+          retailer: args.retailer,
+          query: args.canonicalName,
+          sessionCookies: cookiesMap[args.retailer] ?? "[]",
+        }),
+      });
+
+      const data = (await res.json()) as {
+        results: Array<{ name: string; url: string }>;
+        searchUrl: string;
+      };
+
+      return {
+        topResult: data.results?.[0] ?? null,
+        searchUrl: data.searchUrl ?? null,
+      };
+    } catch {
+      return { topResult: null, searchUrl: null };
+    }
+  },
+});
+
 export const addToCart = internalAction({
   args: {
     householdId: v.id("households"),

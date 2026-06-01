@@ -253,16 +253,41 @@ export const execute = internalAction({
 
       for (const { items, retailer, urlField, setCartUrl } of browserRetailers) {
         for (const item of items) {
-          const productUrl = item.existingItem?.[urlField];
+          let productUrl = item.existingItem?.[urlField] as string | undefined;
+
           if (!productUrl) {
-            executionResults.push({
-              canonicalName: item.canonicalName,
+            // Search the retailer site for the product
+            const search = await ctx.runAction(internal.browserAutomation.searchProduct, {
+              householdId: args.householdId,
               retailer,
-              status: "skipped",
-              detail: `No ${retailer}_url in memory — add it in the web app`,
+              canonicalName: item.canonicalName,
             });
-            continue;
+
+            if (search.topResult?.url) {
+              // Save URL to memory so next time we don't need to search
+              if (item.itemId) {
+                await ctx.runMutation(internal.householdItems.saveProductUrl, {
+                  itemId: item.itemId,
+                  retailer,
+                  url: search.topResult.url,
+                });
+              }
+              productUrl = search.topResult.url;
+            } else {
+              // Couldn't find it — send the search URL so the user can pick the right one
+              const searchUrl = search.searchUrl;
+              executionResults.push({
+                canonicalName: item.canonicalName,
+                retailer,
+                status: "skipped",
+                detail: searchUrl
+                  ? `Couldn't find a match. Verify here: ${searchUrl}`
+                  : `Couldn't find "${item.canonicalName}" on ${retailer}`,
+              });
+              continue;
+            }
           }
+
           const result = await ctx.runAction(internal.browserAutomation.addToCart, {
             householdId: args.householdId,
             retailer,

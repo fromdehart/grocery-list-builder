@@ -91,6 +91,8 @@ export const update = mutation({
       preferredProductName: v.optional(v.string()),
       amazonUrl: v.optional(v.string()),
       targetUrl: v.optional(v.string()),
+      wegmansUrl: v.optional(v.string()),
+      costcoUrl: v.optional(v.string()),
       instacartItemId: v.optional(v.string()),
       preferredRetailer: v.optional(retailerValidator),
       notes: v.optional(v.string()),
@@ -117,6 +119,22 @@ export const remove = mutation({
     }
     await ctx.db.delete(args.itemId);
     return null;
+  },
+});
+
+export const saveProductUrl = internalMutation({
+  args: {
+    itemId: v.id("householdItems"),
+    retailer: retailerValidator,
+    url: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const patch: Record<string, string> = {};
+    if (args.retailer === "amazon") patch.amazonUrl = args.url;
+    else if (args.retailer === "target") patch.targetUrl = args.url;
+    else if (args.retailer === "wegmans") patch.wegmansUrl = args.url;
+    else if (args.retailer === "costco") patch.costcoUrl = args.url;
+    await ctx.db.patch(args.itemId, patch);
   },
 });
 
