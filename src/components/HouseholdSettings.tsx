@@ -36,8 +36,8 @@ export default function HouseholdSettings() {
     }
   };
 
-  const cookiePlaceholder = (domain: string) =>
-    `[{"name":"session","value":"...","domain":".${domain}","path":"/"}]`;
+  const cookiePlaceholder = (_domain: string) =>
+    `{"cookies":[...],"origins":[{"origin":"https://...","localStorage":[...]}]}`;
 
   const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME ?? "YourGroceryBot";
 
@@ -48,9 +48,14 @@ export default function HouseholdSettings() {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-1">Browser Automation</h3>
         <p className="text-xs text-gray-500 mb-4">
-          Point this at your Playwright worker URL, then paste session cookies for each retailer.
-          Export cookies from a logged-in browser using the{" "}
-          <span className="font-medium">Cookie-Editor</span> extension (export as JSON).
+          Point this at your Playwright worker URL, then paste the session JSON for each retailer.
+          To capture a session, run this from the project root on your Mac:
+        </p>
+        <pre className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-4 overflow-x-auto">
+          node scripts/capture_session.mjs wegmans
+        </pre>
+        <p className="text-xs text-gray-500 mb-4">
+          A browser opens — log in — press Enter — paste the contents of the saved JSON file below.
         </p>
         <div className="space-y-4">
           <div>
@@ -72,7 +77,7 @@ export default function HouseholdSettings() {
           ].map(({ label, value, set, domain }) => (
             <div key={label}>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                {label} Session Cookies (JSON)
+                {label} Session (JSON from capture_session.mjs)
               </label>
               <textarea
                 value={value}
