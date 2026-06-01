@@ -12,6 +12,7 @@ export default function HouseholdSettings() {
   const [targetCookies, setTargetCookies] = useState("");
   const [wegmansCookies, setWegmansCookies] = useState("");
   const [costcoCookies, setCostcoCookies] = useState("");
+  const [myTelegramId, setMyTelegramId] = useState("");
   const [allowlist, setAllowlist] = useState<string[]>([]);
   const [newAllowId, setNewAllowId] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
@@ -25,6 +26,7 @@ export default function HouseholdSettings() {
       setWegmansCookies(data.household.wegmansSessionCookies ?? "");
       setCostcoCookies(data.household.costcoSessionCookies ?? "");
       setAllowlist(data.household.telegramAllowlist ?? []);
+      setMyTelegramId(data.member.telegramUserId ?? "");
     }
   }, [data?.household?._id]);
 
@@ -112,32 +114,46 @@ export default function HouseholdSettings() {
       {/* Telegram */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-1">Telegram</h3>
-        {data?.member?.telegramUserId ? (
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-700 font-medium">
-                Linked as @{data.member.telegramUsername ?? data.member.telegramUserId}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">Your Telegram account is connected.</p>
-            </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Paste your Telegram user ID to connect your account. Find it by messaging{" "}
+          <span className="font-mono bg-gray-100 px-1 rounded">@userinfobot</span> on Telegram.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={myTelegramId}
+            onChange={(e) => setMyTelegramId(e.target.value.trim())}
+            placeholder="Your Telegram user ID (e.g. 123456789)"
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button
+            onClick={async () => {
+              setSaving("telegram");
+              try {
+                await bindTelegram({ telegramUserId: myTelegramId });
+                setSaved("telegram");
+                setTimeout(() => setSaved(null), 2000);
+              } finally {
+                setSaving(null);
+              }
+            }}
+            disabled={saving === "telegram"}
+            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-60"
+          >
+            {saving === "telegram" ? "Saving…" : saved === "telegram" ? "Saved ✓" : "Save"}
+          </button>
+          {myTelegramId && (
             <button
               onClick={async () => {
-                await bindTelegram({ telegramUserId: "", telegramUsername: "" });
+                await bindTelegram({ telegramUserId: "" });
+                setMyTelegramId("");
               }}
-              className="px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+              className="px-3 py-2 text-xs text-red-500 border border-red-200 rounded-lg hover:bg-red-50"
             >
-              Unlink
+              Clear
             </button>
-          </div>
-        ) : (
-          <div>
-            <p className="text-sm text-gray-600 mb-2">Not linked</p>
-            <p className="text-xs text-gray-500">
-              Send <code className="bg-gray-100 px-1 rounded">/link</code> to{" "}
-              <span className="font-medium">@{botUsername}</span> on Telegram, then open the link it sends you.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Telegram Allowlist */}
