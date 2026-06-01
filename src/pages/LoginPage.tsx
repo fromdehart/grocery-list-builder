@@ -30,7 +30,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center mb-8">
           <div className="text-4xl mb-3">🛒</div>
-          <h1 className="text-2xl font-bold text-gray-900">Grocery Cart Builder</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Cart Gremlin</h1>
           <p className="text-sm text-gray-500 mt-1">
             {mode === "signIn" ? "Sign in to your account" : "Create a new account"}
           </p>

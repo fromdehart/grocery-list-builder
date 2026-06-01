@@ -60,7 +60,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <span className="text-xl">🛒</span>
             <div>
-              <h1 className="font-bold text-gray-900 text-sm">Grocery Cart Builder</h1>
+              <h1 className="font-bold text-gray-900 text-sm">Cart Gremlin</h1>
               <p className="text-xs text-gray-500">{householdData.household.name}</p>
             </div>
           </div>
