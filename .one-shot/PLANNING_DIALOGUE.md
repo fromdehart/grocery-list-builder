@@ -213,3 +213,10 @@ These are used for:
 
 browser automation fallback
 
+
+## User Feedback (Mon Jun  1 12:16:12 AM EDT 2026)
+If we have the add cart links why can the browser agent click them if logged in? 
+
+I don’t see the Instacart API integration included, we need that 
+
+Also auth is important so we can scale to other families in the future. We should setup the database in a way to can handle auth and multiple users.
