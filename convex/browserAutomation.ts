@@ -40,7 +40,8 @@ export const searchProduct = internalAction({
         body: JSON.stringify({
           retailer: args.retailer,
           query: args.canonicalName,
-          sessionCookies: cookiesMap[args.retailer] ?? "[]",
+          // No session cookies for search — Algolia results are public and
+          // passing an expired session causes redirects to login
         }),
       });
 
@@ -53,7 +54,8 @@ export const searchProduct = internalAction({
         results: data.results ?? [],
         searchUrl: data.searchUrl ?? null,
       };
-    } catch {
+    } catch (e) {
+      console.error("searchProduct failed:", e);
       return { results: [], searchUrl: null };
     }
   },
