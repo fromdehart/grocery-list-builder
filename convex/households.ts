@@ -7,11 +7,6 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new ConvexError("Not authenticated");
-    const user = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("_id"), identity.subject))
-      .first();
-    if (!user) throw new ConvexError("User not found");
 
     const householdId = await ctx.db.insert("households", {
       name: args.name,
@@ -19,7 +14,7 @@ export const create = mutation({
     });
     await ctx.db.insert("householdMembers", {
       householdId,
-      userId: user._id,
+      userId: identity.subject,
       role: "owner",
     });
     return householdId;
@@ -31,15 +26,10 @@ export const getMyHousehold = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
-    const user = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("_id"), identity.subject))
-      .first();
-    if (!user) return null;
 
     const member = await ctx.db
       .query("householdMembers")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
       .first();
     if (!member) return null;
 
@@ -60,15 +50,10 @@ export const updateSettings = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new ConvexError("Not authenticated");
-    const user = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("_id"), identity.subject))
-      .first();
-    if (!user) throw new ConvexError("User not found");
 
     const member = await ctx.db
       .query("householdMembers")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
       .first();
     if (!member) throw new ConvexError("No household found");
 

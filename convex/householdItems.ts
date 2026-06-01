@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { mutation, query, internalQuery, internalMutation } from "./_generated/server";
+import { mutation, query, internalQuery, internalMutation, MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -9,25 +9,12 @@ const retailerValidator = v.union(
   v.literal("instacart"),
 );
 
-async function getHouseholdId(ctx: {
-  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
-  db: {
-    query: (t: string) => {
-      filter: (fn: (q: { eq: (a: unknown, b: unknown) => unknown; field: (f: string) => unknown }) => unknown) => { first: () => Promise<{ _id: Id<"users"> } | null> };
-      withIndex: (idx: string, fn: (q: { eq: (field: string, value: unknown) => unknown }) => unknown) => { first: () => Promise<{ householdId: Id<"households"> } | null> };
-    };
-  };
-}): Promise<Id<"households">> {
+async function getHouseholdId(ctx: MutationCtx | QueryCtx): Promise<Id<"households">> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new ConvexError("Not authenticated");
-  const user = await ctx.db
-    .query("users")
-    .filter((q) => q.eq(q.field("_id"), identity.subject))
-    .first();
-  if (!user) throw new ConvexError("User not found");
   const member = await ctx.db
     .query("householdMembers")
-    .withIndex("by_userId", (q) => q.eq("userId", user._id))
+    .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
     .first();
   if (!member) throw new ConvexError("No household found");
   return member.householdId;
@@ -38,14 +25,9 @@ export const list = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
-    const user = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("_id"), identity.subject))
-      .first();
-    if (!user) return [];
     const member = await ctx.db
       .query("householdMembers")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
       .first();
     if (!member) return [];
 

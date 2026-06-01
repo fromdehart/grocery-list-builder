@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useConvexAuth } from "convex/react";
-import { useAuthActions } from "@convex-dev/auth/react";
+import { useClerk } from "@clerk/react";
 import { useQuery } from "convex/react";
 import { Navigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
@@ -15,7 +15,7 @@ type Tab = "memory" | "sessions" | "settings";
 
 export default function DashboardPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { signOut } = useAuthActions();
+  const { signOut } = useClerk();
   const householdData = useQuery(
     api.households.getMyHousehold,
     isAuthenticated ? {} : "skip"

@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { query, internalMutation } from "./_generated/server";
+import { query, internalMutation, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -24,25 +24,12 @@ const eventStatusValidator = v.union(
   v.literal("skipped"),
 );
 
-async function getCallerHouseholdId(ctx: {
-  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
-  db: {
-    query: (t: string) => {
-      filter: (fn: (q: { eq: (a: unknown, b: unknown) => unknown; field: (f: string) => unknown }) => unknown) => { first: () => Promise<{ _id: Id<"users"> } | null> };
-      withIndex: (idx: string, fn: (q: { eq: (field: string, value: unknown) => unknown }) => unknown) => { first: () => Promise<{ householdId: Id<"households"> } | null> };
-    };
-  };
-}): Promise<Id<"households"> | null> {
+async function getCallerHouseholdId(ctx: QueryCtx): Promise<Id<"households"> | null> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) return null;
-  const user = await ctx.db
-    .query("users")
-    .filter((q) => q.eq(q.field("_id"), identity.subject))
-    .first();
-  if (!user) return null;
   const member = await ctx.db
     .query("householdMembers")
-    .withIndex("by_userId", (q) => q.eq("userId", user._id))
+    .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
     .first();
   return member?.householdId ?? null;
 }

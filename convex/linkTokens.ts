@@ -7,16 +7,11 @@ export const generate = mutation({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new ConvexError("Not authenticated");
-    const user = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("_id"), identity.subject))
-      .first();
-    if (!user) throw new ConvexError("User not found");
 
     const token = crypto.randomUUID();
     await ctx.db.insert("linkTokens", {
       token,
-      userId: user._id,
+      userId: identity.subject,
       expiresAt: Date.now() + 15 * 60 * 1000,
       used: false,
     });
@@ -36,11 +31,6 @@ export const consume = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return { success: false, error: "Not authenticated" };
-    const user = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("_id"), identity.subject))
-      .first();
-    if (!user) return { success: false, error: "User not found" };
 
     const tokenRecord = await ctx.db
       .query("linkTokens")
@@ -50,7 +40,7 @@ export const consume = mutation({
     if (tokenRecord.used || tokenRecord.expiresAt < Date.now()) {
       return { success: false, error: "Token expired" };
     }
-    if (tokenRecord.userId !== user._id) {
+    if (tokenRecord.userId !== identity.subject) {
       return { success: false, error: "Token belongs to a different account" };
     }
 
@@ -58,7 +48,7 @@ export const consume = mutation({
 
     const member = await ctx.db
       .query("householdMembers")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
       .first();
     if (member) {
       await ctx.db.patch(member._id, {
@@ -79,15 +69,10 @@ export const bindTelegramDirect = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return { success: false };
-    const user = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("_id"), identity.subject))
-      .first();
-    if (!user) return { success: false };
 
     const member = await ctx.db
       .query("householdMembers")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
       .first();
     if (!member) return { success: false };
 

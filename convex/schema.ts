@@ -1,10 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
-  ...authTables,
-
   // ── Template tables ──────────────────────────────────────────────────────
   events: defineTable({
     challengeId: v.string(),
@@ -44,7 +41,7 @@ export default defineSchema({
 
   householdMembers: defineTable({
     householdId: v.id("households"),
-    userId: v.id("users"),
+    userId: v.string(),
     role: v.union(v.literal("owner"), v.literal("member")),
     telegramUserId: v.optional(v.string()),
     telegramUsername: v.optional(v.string()),
@@ -121,7 +118,7 @@ export default defineSchema({
 
   linkTokens: defineTable({
     token: v.string(),
-    userId: v.id("users"),
+    userId: v.string(),
     expiresAt: v.number(),
     used: v.boolean(),
   }).index("by_token", ["token"]),

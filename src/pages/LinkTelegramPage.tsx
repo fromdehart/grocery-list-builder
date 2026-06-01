@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { useConvexAuth } from "convex/react";
-import { useMutation } from "convex/react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import LoginPage from "./LoginPage";
 
