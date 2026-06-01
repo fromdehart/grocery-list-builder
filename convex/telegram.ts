@@ -1,9 +1,8 @@
-"use node";
-
 import { action, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import * as telegramClient from "./telegramClient";
+
 
 const TELEGRAM_CHALLENGE_ID = "telegram";
 
@@ -64,6 +63,13 @@ export const storeIncoming = internalMutation({
         updateId: args.updateId,
       },
       timestamp: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(0, internal.botHandler.dispatch, {
+      chatId: args.chatId,
+      telegramUserId: String(args.from?.id ?? ""),
+      telegramUsername: args.from?.username ?? "",
+      text: args.text ?? "",
     });
   },
 });

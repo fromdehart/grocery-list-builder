@@ -3,6 +3,7 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 
+
 const getApiKey = () => process.env.OPENAI_API_KEY!;
 
 function isReasoningModel(model: string): boolean {
@@ -104,6 +105,52 @@ export const generateText = action({
       return { text, responseId };
     } catch (e) {
       console.error("OpenAI request failed:", e);
+      return { text: "", responseId: "" };
+    }
+  },
+});
+
+export const generateJson = action({
+  args: {
+    prompt: v.string(),
+    systemPrompt: v.optional(v.string()),
+    model: v.optional(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = getApiKey();
+    if (!apiKey) return { text: "", responseId: "" };
+
+    const model = args.model ?? "gpt-4o";
+    const input: Array<Record<string, unknown>> = [];
+    if (args.systemPrompt) {
+      input.push({
+        type: "message",
+        role: "system",
+        content: [{ type: "input_text", text: args.systemPrompt }],
+      });
+    }
+    input.push({
+      type: "message",
+      role: "user",
+      content: [{ type: "input_text", text: args.prompt }],
+    });
+
+    try {
+      const res = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ model, input, text: { format: { type: "json_object" } } }),
+      });
+      if (!res.ok) return { text: "", responseId: "" };
+      const data = (await res.json()) as {
+        id?: string;
+        output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+      };
+      return { text: extractText(data), responseId: data.id ?? "" };
+    } catch {
       return { text: "", responseId: "" };
     }
   },
