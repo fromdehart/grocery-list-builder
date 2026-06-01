@@ -70,6 +70,13 @@ export const execute = internalAction({
     let sessionId: Id<"cartSessions"> | null = null;
 
     try {
+      // Acknowledge immediately so the user knows we're working on it
+      await telegramClient.sendMessage(
+        process.env.TELEGRAM_BOT_TOKEN ?? "",
+        args.chatId,
+        "🛒 On it…"
+      );
+
       sessionId = await ctx.runMutation(internal.cartSessions.internalCreate, {
         householdId: args.householdId,
         rawMessage: args.rawMessage,
