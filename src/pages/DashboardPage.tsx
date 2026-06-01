@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useConvexAuth } from "convex/react";
-import { useClerk } from "@clerk/react";
+import { useAuth, useClerk } from "@clerk/react";
 import { useQuery } from "convex/react";
 import { Navigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
@@ -15,6 +15,7 @@ type Tab = "memory" | "sessions" | "settings";
 
 export default function DashboardPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const householdData = useQuery(
     api.households.getMyHousehold,
@@ -23,7 +24,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<Tab>("memory");
   const [selectedSessionId, setSelectedSessionId] = useState<Id<"cartSessions"> | null>(null);
 
-  if (isLoading) {
+  if (isLoading || (isSignedIn && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-gray-500 text-sm">Loading…</div>

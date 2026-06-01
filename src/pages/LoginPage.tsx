@@ -1,9 +1,15 @@
-import { SignIn } from "@clerk/react";
+import { SignIn, useAuth } from "@clerk/react";
+import { Navigate } from "react-router-dom";
 
 export default function LoginPage() {
+  const { isSignedIn, isLoaded } = useAuth();
+
+  if (!isLoaded) return null;
+  if (isSignedIn) return <Navigate to="/dashboard" replace />;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <SignIn afterSignInUrl="/dashboard" afterSignUpUrl="/dashboard" />
+      <SignIn forceRedirectUrl="/dashboard" />
     </div>
   );
 }
