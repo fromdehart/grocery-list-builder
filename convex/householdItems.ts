@@ -7,6 +7,8 @@ const retailerValidator = v.union(
   v.literal("amazon"),
   v.literal("target"),
   v.literal("instacart"),
+  v.literal("wegmans"),
+  v.literal("costco"),
 );
 
 async function getHouseholdId(ctx: MutationCtx | QueryCtx): Promise<Id<"households">> {

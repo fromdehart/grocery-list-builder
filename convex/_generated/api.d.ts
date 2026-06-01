@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as auth from "../auth.js";
 import type * as botHandler from "../botHandler.js";
 import type * as browserAutomation from "../browserAutomation.js";
 import type * as cartBuilder from "../cartBuilder.js";
@@ -25,7 +24,6 @@ import type * as resend from "../resend.js";
 import type * as telegram from "../telegram.js";
 import type * as telegramClient from "../telegramClient.js";
 import type * as tracking from "../tracking.js";
-import type * as votes from "../votes.js";
 
 import type {
   ApiFromModules,
@@ -34,7 +32,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  auth: typeof auth;
   botHandler: typeof botHandler;
   browserAutomation: typeof browserAutomation;
   cartBuilder: typeof cartBuilder;
@@ -51,7 +48,6 @@ declare const fullApi: ApiFromModules<{
   telegram: typeof telegram;
   telegramClient: typeof telegramClient;
   tracking: typeof tracking;
-  votes: typeof votes;
 }>;
 
 /**

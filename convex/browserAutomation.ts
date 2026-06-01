@@ -5,7 +5,12 @@ import { v } from "convex/values";
 export const addToCart = internalAction({
   args: {
     householdId: v.id("households"),
-    retailer: v.union(v.literal("amazon"), v.literal("target")),
+    retailer: v.union(
+      v.literal("amazon"),
+      v.literal("target"),
+      v.literal("wegmans"),
+      v.literal("costco"),
+    ),
     productUrl: v.string(),
     canonicalName: v.string(),
   },
@@ -23,10 +28,13 @@ export const addToCart = internalAction({
       };
     }
 
-    const cookiesJson =
-      args.retailer === "amazon"
-        ? household?.amazonSessionCookies
-        : household?.targetSessionCookies;
+    const cookiesMap = {
+      amazon: household?.amazonSessionCookies,
+      target: household?.targetSessionCookies,
+      wegmans: household?.wegmansSessionCookies,
+      costco: household?.costcoSessionCookies,
+    };
+    const cookiesJson = cookiesMap[args.retailer];
 
     try {
       const res = await fetch(`${workerUrl}/automate`, {

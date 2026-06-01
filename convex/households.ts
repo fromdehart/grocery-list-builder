@@ -46,6 +46,8 @@ export const updateSettings = mutation({
     playwrightWorkerUrl: v.optional(v.string()),
     amazonSessionCookies: v.optional(v.string()),
     targetSessionCookies: v.optional(v.string()),
+    wegmansSessionCookies: v.optional(v.string()),
+    costcoSessionCookies: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -62,6 +64,8 @@ export const updateSettings = mutation({
     if (args.playwrightWorkerUrl !== undefined) patch.playwrightWorkerUrl = args.playwrightWorkerUrl;
     if (args.amazonSessionCookies !== undefined) patch.amazonSessionCookies = args.amazonSessionCookies;
     if (args.targetSessionCookies !== undefined) patch.targetSessionCookies = args.targetSessionCookies;
+    if (args.wegmansSessionCookies !== undefined) patch.wegmansSessionCookies = args.wegmansSessionCookies;
+    if (args.costcoSessionCookies !== undefined) patch.costcoSessionCookies = args.costcoSessionCookies;
 
     await ctx.db.patch(member.householdId, patch);
     return null;

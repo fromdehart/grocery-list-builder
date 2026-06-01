@@ -37,6 +37,8 @@ export default defineSchema({
     playwrightWorkerUrl: v.optional(v.string()),
     amazonSessionCookies: v.optional(v.string()),
     targetSessionCookies: v.optional(v.string()),
+    wegmansSessionCookies: v.optional(v.string()),
+    costcoSessionCookies: v.optional(v.string()),
   }),
 
   householdMembers: defineTable({
@@ -58,11 +60,15 @@ export default defineSchema({
       v.literal("amazon"),
       v.literal("target"),
       v.literal("instacart"),
+      v.literal("wegmans"),
+      v.literal("costco"),
     ),
     preferredProductName: v.optional(v.string()),
     amazonUrl: v.optional(v.string()),
     targetUrl: v.optional(v.string()),
     instacartItemId: v.optional(v.string()),
+    wegmansUrl: v.optional(v.string()),
+    costcoUrl: v.optional(v.string()),
     purchaseFrequency: v.optional(v.string()),
     confidenceScore: v.number(),
     lastAddedAt: v.optional(v.number()),
@@ -88,6 +94,8 @@ export default defineSchema({
     amazonCartUrl: v.optional(v.string()),
     targetCartUrl: v.optional(v.string()),
     instacartCartUrl: v.optional(v.string()),
+    wegmansCartUrl: v.optional(v.string()),
+    costcoCartUrl: v.optional(v.string()),
     telegramChatId: v.optional(v.string()),
   }).index("by_householdId", ["householdId"]),
 
@@ -100,6 +108,8 @@ export default defineSchema({
       v.literal("amazon"),
       v.literal("target"),
       v.literal("instacart"),
+      v.literal("wegmans"),
+      v.literal("costco"),
       v.literal("unknown"),
     ),
     status: v.union(

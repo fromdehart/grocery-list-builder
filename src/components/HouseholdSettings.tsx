@@ -7,19 +7,21 @@ export default function HouseholdSettings() {
   const updateSettings = useMutation(api.households.updateSettings);
   const bindTelegram = useMutation(api.linkTokens.bindTelegramDirect);
 
-  const [instacartApiKey, setInstacartApiKey] = useState("");
   const [playwrightWorkerUrl, setPlaywrightWorkerUrl] = useState("");
   const [amazonCookies, setAmazonCookies] = useState("");
   const [targetCookies, setTargetCookies] = useState("");
+  const [wegmansCookies, setWegmansCookies] = useState("");
+  const [costcoCookies, setCostcoCookies] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
   useEffect(() => {
     if (data?.household) {
-      setInstacartApiKey(data.household.instacartApiKey ?? "");
       setPlaywrightWorkerUrl(data.household.playwrightWorkerUrl ?? "");
       setAmazonCookies(data.household.amazonSessionCookies ?? "");
       setTargetCookies(data.household.targetSessionCookies ?? "");
+      setWegmansCookies(data.household.wegmansSessionCookies ?? "");
+      setCostcoCookies(data.household.costcoSessionCookies ?? "");
     }
   }, [data?.household?._id]);
 
@@ -34,76 +36,62 @@ export default function HouseholdSettings() {
     }
   };
 
+  const cookiePlaceholder = (domain: string) =>
+    `[{"name":"session","value":"...","domain":".${domain}","path":"/"}]`;
+
   const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME ?? "YourGroceryBot";
 
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* Instacart */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="font-semibold text-gray-900 mb-1">Instacart</h3>
-        <p className="text-xs text-gray-500 mb-4">
-          Enter your Instacart Connect API key to create real carts. Leave blank to use search deeplinks.
-        </p>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">API Key</label>
-            <input
-              type="password"
-              value={instacartApiKey}
-              onChange={(e) => setInstacartApiKey(e.target.value)}
-              placeholder="ic_..."
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-          <button
-            onClick={() => save("instacart", { instacartApiKey })}
-            disabled={saving === "instacart"}
-            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-60"
-          >
-            {saving === "instacart" ? "Saving…" : saved === "instacart" ? "Saved ✓" : "Save"}
-          </button>
-        </div>
-      </div>
 
       {/* Browser Automation */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-1">Browser Automation</h3>
         <p className="text-xs text-gray-500 mb-4">
-          Run the Playwright worker locally (<code className="bg-gray-100 px-1 rounded">cd worker && npm start</code>) and enter its URL here.
+          Point this at your Playwright worker URL, then paste session cookies for each retailer.
+          Export cookies from a logged-in browser using the{" "}
+          <span className="font-medium">Cookie-Editor</span> extension (export as JSON).
         </p>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Worker URL</label>
             <input
               type="text"
               value={playwrightWorkerUrl}
               onChange={(e) => setPlaywrightWorkerUrl(e.target.value)}
-              placeholder="http://localhost:4000"
+              placeholder="http://your-vps-ip:3030"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Amazon Session Cookies (JSON)</label>
-            <textarea
-              value={amazonCookies}
-              onChange={(e) => setAmazonCookies(e.target.value)}
-              rows={3}
-              placeholder={`[{"name":"session-id","value":"...","domain":".amazon.com","path":"/"}]`}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Target Session Cookies (JSON)</label>
-            <textarea
-              value={targetCookies}
-              onChange={(e) => setTargetCookies(e.target.value)}
-              rows={3}
-              placeholder={`[{"name":"UserSession","value":"...","domain":".target.com","path":"/"}]`}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
+
+          {[
+            { label: "Amazon", key: "amazon", value: amazonCookies, set: setAmazonCookies, domain: "amazon.com" },
+            { label: "Target", key: "target", value: targetCookies, set: setTargetCookies, domain: "target.com" },
+            { label: "Wegmans", key: "wegmans", value: wegmansCookies, set: setWegmansCookies, domain: "wegmans.com" },
+            { label: "Costco", key: "costco", value: costcoCookies, set: setCostcoCookies, domain: "costco.com" },
+          ].map(({ label, value, set, domain }) => (
+            <div key={label}>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                {label} Session Cookies (JSON)
+              </label>
+              <textarea
+                value={value}
+                onChange={(e) => set(e.target.value)}
+                rows={3}
+                placeholder={cookiePlaceholder(domain)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          ))}
+
           <button
-            onClick={() => save("automation", { playwrightWorkerUrl, amazonSessionCookies: amazonCookies, targetSessionCookies: targetCookies })}
+            onClick={() => save("automation", {
+              playwrightWorkerUrl,
+              amazonSessionCookies: amazonCookies,
+              targetSessionCookies: targetCookies,
+              wegmansSessionCookies: wegmansCookies,
+              costcoSessionCookies: costcoCookies,
+            })}
             disabled={saving === "automation"}
             className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-60"
           >

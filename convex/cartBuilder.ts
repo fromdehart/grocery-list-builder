@@ -3,17 +3,19 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
-type Retailer = "amazon" | "target" | "instacart";
+type Retailer = "amazon" | "target" | "instacart" | "wegmans" | "costco";
 
 function retailerHeuristic(category: string): Retailer {
-  const instacartCategories = ["produce", "dairy", "bakery", "frozen", "meat", "seafood", "deli", "beverages", "snacks", "condiments", "pantry", "canned", "grain"];
-  const amazonCategories = ["electronics", "supplements", "vitamins", "books", "office", "cleaning", "personal care", "health", "beauty", "toys"];
+  const wegmansCategories = ["produce", "dairy", "bakery", "frozen", "meat", "seafood", "deli", "beverages", "snacks", "condiments", "pantry", "canned", "grain"];
+  const costcoCategories = ["bulk", "wholesale", "large", "paper", "cleaning supplies", "laundry"];
+  const amazonCategories = ["electronics", "supplements", "vitamins", "books", "office", "personal care", "health", "beauty", "toys"];
   const targetCategories = ["clothing", "home", "decor", "kitchen", "bedding", "apparel"];
   const lower = category.toLowerCase();
-  if (instacartCategories.some((c) => lower.includes(c))) return "instacart";
+  if (costcoCategories.some((c) => lower.includes(c))) return "costco";
+  if (wegmansCategories.some((c) => lower.includes(c))) return "wegmans";
   if (amazonCategories.some((c) => lower.includes(c))) return "amazon";
   if (targetCategories.some((c) => lower.includes(c))) return "target";
-  return "instacart";
+  return "wegmans";
 }
 
 type ExecutionResult = {
@@ -27,7 +29,13 @@ type ExecutionResult = {
 function formatReply(
   items: Array<{ canonicalName: string }>,
   results: ExecutionResult[],
-  cartUrls: { amazonCartUrl?: string; targetCartUrl?: string; instacartCartUrl?: string }
+  cartUrls: {
+    amazonCartUrl?: string;
+    targetCartUrl?: string;
+    instacartCartUrl?: string;
+    wegmansCartUrl?: string;
+    costcoCartUrl?: string;
+  }
 ): string {
   const successCount = results.filter((r) => r.status === "success").length;
   const total = results.length;
@@ -43,6 +51,8 @@ function formatReply(
 
   if (cartUrls.amazonCartUrl) text += `\n\n🛒 Amazon: ${cartUrls.amazonCartUrl}`;
   if (cartUrls.targetCartUrl) text += `\n🛒 Target: ${cartUrls.targetCartUrl}`;
+  if (cartUrls.wegmansCartUrl) text += `\n🛒 Wegmans: ${cartUrls.wegmansCartUrl}`;
+  if (cartUrls.costcoCartUrl) text += `\n🛒 Costco: ${cartUrls.costcoCartUrl}`;
   if (cartUrls.instacartCartUrl) text += `\n🛒 Instacart: ${cartUrls.instacartCartUrl}`;
 
   return text;
@@ -142,7 +152,6 @@ export const execute = internalAction({
         failureCount: 0,
       });
 
-      // Assign retailers
       type ItemWithRetailer = {
         canonicalName: string;
         category: string;
@@ -156,8 +165,8 @@ export const execute = internalAction({
         const existingItem = existingItems.find((e) => e.canonicalName === item.canonicalName);
         const constraint = parsed.globalRetailerConstraint ?? item.retailerConstraint;
         const retailer: Retailer = constraint
-          ? constraint
-          : existingItem?.preferredRetailer
+          ? (constraint as Retailer)
+          : (existingItem?.preferredRetailer as Retailer | undefined)
           ?? retailerHeuristic(existingItem?.category ?? "pantry");
         return {
           canonicalName: item.canonicalName,
@@ -169,7 +178,6 @@ export const execute = internalAction({
         };
       });
 
-      // Upsert new items
       const newItems = itemsWithRetailer.filter((i) => !i.existingItem);
       if (newItems.length > 0) {
         const upserted = await ctx.runMutation(internal.householdItems.internalUpsertBatch, {
@@ -187,8 +195,8 @@ export const execute = internalAction({
         }
       }
 
-      // Log pending events
       for (const item of itemsWithRetailer) {
+        const urlKey = `${item.retailer}Url` as keyof (typeof existingItems)[number];
         await ctx.runMutation(internal.cartSessions.internalLogEvent, {
           sessionId,
           householdId: args.householdId,
@@ -196,19 +204,22 @@ export const execute = internalAction({
           itemId: item.itemId,
           retailer: item.retailer,
           status: "pending",
-          productUrl: item.existingItem?.[`${item.retailer}Url` as "amazonUrl" | "targetUrl"] ?? undefined,
+          productUrl: item.existingItem?.[urlKey] as string | undefined,
         });
       }
 
-      // Group by retailer
       const instacartItems = itemsWithRetailer.filter((i) => i.retailer === "instacart");
       const amazonItems = itemsWithRetailer.filter((i) => i.retailer === "amazon");
       const targetItems = itemsWithRetailer.filter((i) => i.retailer === "target");
+      const wegmansItems = itemsWithRetailer.filter((i) => i.retailer === "wegmans");
+      const costcoItems = itemsWithRetailer.filter((i) => i.retailer === "costco");
 
       const executionResults: ExecutionResult[] = [];
       let amazonCartUrl: string | undefined;
       let targetCartUrl: string | undefined;
       let instacartCartUrl: string | undefined;
+      let wegmansCartUrl: string | undefined;
+      let costcoCartUrl: string | undefined;
 
       // Instacart
       if (instacartItems.length > 0) {
@@ -232,58 +243,40 @@ export const execute = internalAction({
         }
       }
 
-      // Amazon
-      for (const item of amazonItems) {
-        const productUrl = item.existingItem?.amazonUrl;
-        if (!productUrl) {
-          executionResults.push({
-            canonicalName: item.canonicalName,
-            retailer: "amazon",
-            status: "skipped",
-            detail: "No amazon_url in memory — add it in the web app",
-          });
-          continue;
-        }
-        const result = await ctx.runAction(internal.browserAutomation.addToCart, {
-          householdId: args.householdId,
-          retailer: "amazon",
-          productUrl,
-          canonicalName: item.canonicalName,
-        });
-        if (result.cartUrl) amazonCartUrl = result.cartUrl;
-        executionResults.push({
-          canonicalName: item.canonicalName,
-          retailer: "amazon",
-          status: result.success ? "success" : "failed",
-          detail: result.error ?? undefined,
-        });
-      }
+      // Amazon, Target, Wegmans, Costco — all via browser automation
+      const browserRetailers = [
+        { items: amazonItems, retailer: "amazon" as const, urlField: "amazonUrl" as const, setCartUrl: (u: string) => { amazonCartUrl = u; } },
+        { items: targetItems, retailer: "target" as const, urlField: "targetUrl" as const, setCartUrl: (u: string) => { targetCartUrl = u; } },
+        { items: wegmansItems, retailer: "wegmans" as const, urlField: "wegmansUrl" as const, setCartUrl: (u: string) => { wegmansCartUrl = u; } },
+        { items: costcoItems, retailer: "costco" as const, urlField: "costcoUrl" as const, setCartUrl: (u: string) => { costcoCartUrl = u; } },
+      ];
 
-      // Target
-      for (const item of targetItems) {
-        const productUrl = item.existingItem?.targetUrl;
-        if (!productUrl) {
+      for (const { items, retailer, urlField, setCartUrl } of browserRetailers) {
+        for (const item of items) {
+          const productUrl = item.existingItem?.[urlField];
+          if (!productUrl) {
+            executionResults.push({
+              canonicalName: item.canonicalName,
+              retailer,
+              status: "skipped",
+              detail: `No ${retailer}_url in memory — add it in the web app`,
+            });
+            continue;
+          }
+          const result = await ctx.runAction(internal.browserAutomation.addToCart, {
+            householdId: args.householdId,
+            retailer,
+            productUrl,
+            canonicalName: item.canonicalName,
+          });
+          if (result.cartUrl) setCartUrl(result.cartUrl);
           executionResults.push({
             canonicalName: item.canonicalName,
-            retailer: "target",
-            status: "skipped",
-            detail: "No target_url in memory — add it in the web app",
+            retailer,
+            status: result.success ? "success" : "failed",
+            detail: result.error ?? undefined,
           });
-          continue;
         }
-        const result = await ctx.runAction(internal.browserAutomation.addToCart, {
-          householdId: args.householdId,
-          retailer: "target",
-          productUrl,
-          canonicalName: item.canonicalName,
-        });
-        if (result.cartUrl) targetCartUrl = result.cartUrl;
-        executionResults.push({
-          canonicalName: item.canonicalName,
-          retailer: "target",
-          status: result.success ? "success" : "failed",
-          detail: result.error ?? undefined,
-        });
       }
 
       const successCount = executionResults.filter((r) => r.status === "success").length;
@@ -298,12 +291,16 @@ export const execute = internalAction({
         amazonCartUrl,
         targetCartUrl,
         instacartCartUrl,
+        wegmansCartUrl,
+        costcoCartUrl,
       });
 
       const replyText = formatReply(parsed.items, executionResults, {
         amazonCartUrl,
         targetCartUrl,
         instacartCartUrl,
+        wegmansCartUrl,
+        costcoCartUrl,
       });
 
       await ctx.runAction(internal.telegram.sendMessage, {

@@ -14,6 +14,8 @@ const retailerValidator = v.union(
   v.literal("amazon"),
   v.literal("target"),
   v.literal("instacart"),
+  v.literal("wegmans"),
+  v.literal("costco"),
   v.literal("unknown"),
 );
 
@@ -97,6 +99,8 @@ export const internalUpdateStatus = internalMutation({
     amazonCartUrl: v.optional(v.string()),
     targetCartUrl: v.optional(v.string()),
     instacartCartUrl: v.optional(v.string()),
+    wegmansCartUrl: v.optional(v.string()),
+    costcoCartUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.sessionId, {
@@ -107,6 +111,8 @@ export const internalUpdateStatus = internalMutation({
       amazonCartUrl: args.amazonCartUrl,
       targetCartUrl: args.targetCartUrl,
       instacartCartUrl: args.instacartCartUrl,
+      wegmansCartUrl: args.wegmansCartUrl,
+      costcoCartUrl: args.costcoCartUrl,
     });
     return null;
   },
