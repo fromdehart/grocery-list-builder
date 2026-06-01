@@ -5,7 +5,7 @@ import { authTables } from "@convex-dev/auth/server";
 export default defineSchema({
   ...authTables,
 
-  // ── Template tables (keep for VoteATron3000 / GateScreen) ──────────────
+  // ── Template tables ──────────────────────────────────────────────────────
   events: defineTable({
     challengeId: v.string(),
     sessionId: v.string(),
@@ -22,14 +22,6 @@ export default defineSchema({
   })
     .index("by_challengeId", ["challengeId"])
     .index("by_challenge_and_key", ["challengeId", "key"]),
-
-  votes: defineTable({
-    challengeId: v.string(),
-    sessionId: v.string(),
-    createdAt: v.number(),
-  })
-    .index("by_challengeId", ["challengeId"])
-    .index("by_challenge_and_session", ["challengeId", "sessionId"]),
 
   leads: defineTable({
     challengeId: v.string(),
