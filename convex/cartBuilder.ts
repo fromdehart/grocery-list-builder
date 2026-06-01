@@ -264,53 +264,65 @@ export const execute = internalAction({
           let productUrl = item.existingItem?.[urlField] as string | undefined;
 
           if (!productUrl) {
-            // Search the retailer site for the product
-            const search = await ctx.runAction(internal.browserAutomation.searchProduct, {
-              householdId: args.householdId,
-              retailer,
-              canonicalName: item.canonicalName,
-            });
-
-            if (search.results && search.results.length > 0) {
-              // Present options as Telegram inline keyboard — user picks with one tap
-              const choiceId = await ctx.runMutation(internal.pendingChoices.create, {
-                chatId: args.chatId,
+            try {
+              const search = await ctx.runAction(internal.browserAutomation.searchProduct, {
                 householdId: args.householdId,
-                canonicalName: item.canonicalName,
                 retailer,
-                itemId: item.itemId,
-                options: search.results,
+                canonicalName: item.canonicalName,
               });
 
-              const keyboard = [
-                ...search.results.map((r: { name: string; url: string }, i: number) => [
-                  { text: r.name || `Option ${i + 1}`, callback_data: `pick:${choiceId}:${i}` },
-                ]),
-                [{ text: "Skip", callback_data: `pick:${choiceId}:skip` }],
-              ];
+              console.log(`[cart] search returned ${search.results?.length ?? 0} results for "${item.canonicalName}"`);
 
-              await telegramClient.sendMessageWithKeyboard(
-                process.env.TELEGRAM_BOT_TOKEN ?? "",
-                args.chatId,
-                `Which "${item.canonicalName}" did you want from ${retailer}?`,
-                keyboard
-              );
+              if (search.results && search.results.length > 0) {
+                console.log(`[cart] creating pendingChoice, chatId=${args.chatId}`);
+                const choiceId = await ctx.runMutation(internal.pendingChoices.create, {
+                  chatId: args.chatId,
+                  householdId: args.householdId,
+                  canonicalName: item.canonicalName,
+                  retailer,
+                  itemId: item.itemId,
+                  options: search.results,
+                });
+                console.log(`[cart] pendingChoice created: ${choiceId}`);
 
+                const keyboard = [
+                  ...search.results.map((r: { name: string; url: string }, i: number) => [
+                    { text: r.name || `Option ${i + 1}`, callback_data: `pick:${choiceId}:${i}` },
+                  ]),
+                  [{ text: "↩️ Skip", callback_data: `pick:${choiceId}:skip` }],
+                ];
+
+                const kbResult = await telegramClient.sendMessageWithKeyboard(
+                  process.env.TELEGRAM_BOT_TOKEN ?? "",
+                  args.chatId,
+                  `Which "${item.canonicalName}" did you want from ${retailer}?`,
+                  keyboard
+                );
+                console.log(`[cart] keyboard send ok=${kbResult.ok}, error=${!kbResult.ok ? (kbResult as {error?:string}).error : "none"}`);
+
+                executionResults.push({
+                  canonicalName: item.canonicalName,
+                  retailer,
+                  status: "skipped",
+                  detail: "Waiting for your selection in Telegram",
+                });
+              } else {
+                executionResults.push({
+                  canonicalName: item.canonicalName,
+                  retailer,
+                  status: "skipped",
+                  detail: search.searchUrl
+                    ? `Couldn't find a match — search here: ${search.searchUrl}`
+                    : `Couldn't find "${item.canonicalName}" on ${retailer}`,
+                });
+              }
+            } catch (searchErr) {
+              console.error(`[cart] search/keyboard block failed for "${item.canonicalName}":`, searchErr);
               executionResults.push({
                 canonicalName: item.canonicalName,
                 retailer,
                 status: "skipped",
-                detail: "Waiting for your selection in Telegram",
-              });
-            } else {
-              // No results — send the search URL so the user can look manually
-              executionResults.push({
-                canonicalName: item.canonicalName,
-                retailer,
-                status: "skipped",
-                detail: search.searchUrl
-                  ? `Couldn't find a match — search here: ${search.searchUrl}`
-                  : `Couldn't find "${item.canonicalName}" on ${retailer}`,
+                detail: `Search failed: ${searchErr instanceof Error ? searchErr.message : String(searchErr)}`,
               });
             }
             continue;

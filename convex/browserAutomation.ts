@@ -9,6 +9,59 @@ const retailerValidator = v.union(
   v.literal("costco"),
 );
 
+async function searchWegmansAlgolia(query: string): Promise<{ results: Array<{ name: string; url: string }>; searchUrl: string | null }> {
+  const appId = process.env.WEGMANS_ALGOLIA_APP_ID;
+  const apiKey = process.env.WEGMANS_ALGOLIA_API_KEY;
+  const searchUrl = `https://www.wegmans.com/shop/search?q=${encodeURIComponent(query)}`;
+
+  if (!appId || !apiKey) {
+    console.error("[search:wegmans] Algolia credentials not configured");
+    return { results: [], searchUrl };
+  }
+
+  // Normalize accents: açaí → acai
+  const normalizedQuery = query.normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+  try {
+    const res = await fetch(`https://${appId.toLowerCase()}-dsn.algolia.net/1/indexes/*/queries`, {
+      method: "POST",
+      headers: {
+        "X-Algolia-Application-Id": appId,
+        "X-Algolia-API-Key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requests: [{
+          indexName: "products",
+          query: normalizedQuery,
+          hitsPerPage: 10,
+          filters: "fulfilmentType:instore AND excludeFromWeb:false AND isSoldAtStore:true",
+          attributesToRetrieve: ["productName", "slug", "skuId"],
+        }],
+      }),
+    });
+
+    const data = (await res.json()) as {
+      results: Array<{ hits: Array<{ productName?: string; slug?: string; skuId?: string }> }>;
+    };
+
+    const hits = data.results?.[0]?.hits ?? [];
+    console.log(`[search:wegmans:algolia] query="${normalizedQuery}" → ${hits.length} hits`);
+
+    const results = hits
+      .filter((h) => h.slug || h.skuId)
+      .map((h) => ({
+        name: h.productName ?? "",
+        url: `https://www.wegmans.com/shop/product/${h.slug ?? h.skuId}`,
+      }));
+
+    return { results, searchUrl };
+  } catch (e) {
+    console.error("[search:wegmans:algolia] failed:", e);
+    return { results: [], searchUrl };
+  }
+}
+
 export const searchProduct = internalAction({
   args: {
     householdId: v.id("households"),
@@ -21,14 +74,17 @@ export const searchProduct = internalAction({
     });
 
     const workerUrl = household?.playwrightWorkerUrl;
-    if (!workerUrl) return { topResult: null, searchUrl: null };
+    if (!workerUrl) {
+      console.log("[search] no workerUrl configured");
+      return { results: [], searchUrl: null };
+    }
 
-    const cookiesMap: Record<string, string | undefined> = {
-      amazon: household?.amazonSessionCookies,
-      target: household?.targetSessionCookies,
-      wegmans: household?.wegmansSessionCookies,
-      costco: household?.costcoSessionCookies,
-    };
+    // Wegmans: use Algolia API directly (no browser needed, much faster)
+    if (args.retailer === "wegmans") {
+      return searchWegmansAlgolia(args.canonicalName);
+    }
+
+    console.log(`[search] calling ${workerUrl}/search retailer=${args.retailer} query="${args.canonicalName}"`);
 
     try {
       const res = await fetch(`${workerUrl}/search`, {
@@ -40,22 +96,25 @@ export const searchProduct = internalAction({
         body: JSON.stringify({
           retailer: args.retailer,
           query: args.canonicalName,
-          // No session cookies for search — Algolia results are public and
-          // passing an expired session causes redirects to login
         }),
       });
+
+      console.log(`[search] HTTP ${res.status}`);
 
       const data = (await res.json()) as {
         results: Array<{ name: string; url: string }>;
         searchUrl: string;
+        error?: string;
       };
+
+      console.log(`[search] got ${data.results?.length ?? 0} results, error=${data.error ?? "none"}`);
 
       return {
         results: data.results ?? [],
         searchUrl: data.searchUrl ?? null,
       };
     } catch (e) {
-      console.error("searchProduct failed:", e);
+      console.error("[search] fetch failed:", e);
       return { results: [], searchUrl: null };
     }
   },
