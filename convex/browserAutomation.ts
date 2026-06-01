@@ -34,7 +34,7 @@ async function searchWegmansAlgolia(query: string): Promise<{ results: Array<{ n
         requests: [{
           indexName: "products",
           query: normalizedQuery,
-          hitsPerPage: 10,
+          hitsPerPage: 50,
           filters: "fulfilmentType:instore AND excludeFromWeb:false AND isSoldAtStore:true",
           attributesToRetrieve: ["productName", "slug", "skuId"],
         }],
@@ -45,8 +45,18 @@ async function searchWegmansAlgolia(query: string): Promise<{ results: Array<{ n
       results: Array<{ hits: Array<{ productName?: string; slug?: string; skuId?: string }> }>;
     };
 
-    const hits = data.results?.[0]?.hits ?? [];
-    console.log(`[search:wegmans:algolia] query="${normalizedQuery}" → ${hits.length} hits`);
+    const allHits = data.results?.[0]?.hits ?? [];
+
+    // Deduplicate by skuId — same product appears once per store in the index
+    const seen = new Set<string>();
+    const hits = allHits.filter((h) => {
+      const key = h.skuId ?? h.slug ?? "";
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 10);
+
+    console.log(`[search:wegmans:algolia] query="${normalizedQuery}" → ${hits.length} unique hits (from ${allHits.length} total)`);
 
     const results = hits
       .filter((h) => h.slug || h.skuId)
