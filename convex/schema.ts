@@ -127,6 +127,16 @@ export default defineSchema({
     .index("by_sessionId", ["sessionId"])
     .index("by_householdId", ["householdId"]),
 
+  pendingChoices: defineTable({
+    chatId: v.string(),
+    householdId: v.id("households"),
+    canonicalName: v.string(),
+    retailer: v.string(),
+    itemId: v.optional(v.id("householdItems")),
+    options: v.array(v.object({ name: v.string(), url: v.string() })),
+    createdAt: v.number(),
+  }).index("by_chatId", ["chatId"]),
+
   linkTokens: defineTable({
     token: v.string(),
     userId: v.string(),

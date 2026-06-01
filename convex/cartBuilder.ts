@@ -2,6 +2,7 @@ import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import * as telegramClient from "./telegramClient";
 
 type Retailer = "amazon" | "target" | "instacart" | "wegmans" | "costco";
 
@@ -263,29 +264,49 @@ export const execute = internalAction({
               canonicalName: item.canonicalName,
             });
 
-            if (search.topResult?.url) {
-              // Save URL to memory so next time we don't need to search
-              if (item.itemId) {
-                await ctx.runMutation(internal.householdItems.saveProductUrl, {
-                  itemId: item.itemId,
-                  retailer,
-                  url: search.topResult.url,
-                });
-              }
-              productUrl = search.topResult.url;
-            } else {
-              // Couldn't find it — send the search URL so the user can pick the right one
-              const searchUrl = search.searchUrl;
+            if (search.results && search.results.length > 0) {
+              // Present options as Telegram inline keyboard — user picks with one tap
+              const choiceId = await ctx.runMutation(internal.pendingChoices.create, {
+                chatId: args.chatId,
+                householdId: args.householdId,
+                canonicalName: item.canonicalName,
+                retailer,
+                itemId: item.itemId,
+                options: search.results,
+              });
+
+              const keyboard = [
+                ...search.results.map((r: { name: string; url: string }, i: number) => [
+                  { text: r.name || `Option ${i + 1}`, callback_data: `pick:${choiceId}:${i}` },
+                ]),
+                [{ text: "Skip", callback_data: `pick:${choiceId}:skip` }],
+              ];
+
+              await telegramClient.sendMessageWithKeyboard(
+                process.env.TELEGRAM_BOT_TOKEN ?? "",
+                args.chatId,
+                `Which "${item.canonicalName}" did you want from ${retailer}?`,
+                keyboard
+              );
+
               executionResults.push({
                 canonicalName: item.canonicalName,
                 retailer,
                 status: "skipped",
-                detail: searchUrl
-                  ? `Couldn't find a match. Verify here: ${searchUrl}`
+                detail: "Waiting for your selection in Telegram",
+              });
+            } else {
+              // No results — send the search URL so the user can look manually
+              executionResults.push({
+                canonicalName: item.canonicalName,
+                retailer,
+                status: "skipped",
+                detail: search.searchUrl
+                  ? `Couldn't find a match — search here: ${search.searchUrl}`
                   : `Couldn't find "${item.canonicalName}" on ${retailer}`,
               });
-              continue;
             }
+            continue;
           }
 
           const result = await ctx.runAction(internal.browserAutomation.addToCart, {

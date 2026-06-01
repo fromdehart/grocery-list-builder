@@ -43,6 +43,45 @@ export function sendMessage(
   return request(token, "sendMessage", { chat_id: chatId, text });
 }
 
+export type InlineKeyboardButton = { text: string; callback_data: string };
+export type InlineKeyboard = InlineKeyboardButton[][];
+
+export function sendMessageWithKeyboard(
+  token: string,
+  chatId: string,
+  text: string,
+  inlineKeyboard: InlineKeyboard
+): Promise<ApiResult<{ message_id: number }>> {
+  return request<{ message_id: number }>(token, "sendMessage", {
+    chat_id: chatId,
+    text,
+    reply_markup: { inline_keyboard: inlineKeyboard },
+  });
+}
+
+export function answerCallbackQuery(
+  token: string,
+  callbackQueryId: string,
+  text?: string
+): Promise<ApiResult> {
+  const body: Record<string, unknown> = { callback_query_id: callbackQueryId };
+  if (text) body.text = text;
+  return request(token, "answerCallbackQuery", body);
+}
+
+export function editMessageText(
+  token: string,
+  chatId: string,
+  messageId: number,
+  text: string
+): Promise<ApiResult> {
+  return request(token, "editMessageText", {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+  });
+}
+
 export function sendPhoto(
   token: string,
   chatId: string,

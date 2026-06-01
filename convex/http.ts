@@ -30,6 +30,12 @@ http.route({
         from?: { id: number; username?: string; first_name?: string };
         text?: string;
       };
+      callback_query?: {
+        id: string;
+        from: { id: number; username?: string };
+        message: { chat: { id: number }; message_id: number };
+        data?: string;
+      };
     };
     try {
       body = (await request.json()) as typeof body;
@@ -38,6 +44,21 @@ http.route({
     }
 
     const updateId = body.update_id ?? 0;
+
+    if (body.callback_query) {
+      const cq = body.callback_query;
+      const chatId = String(cq.message.chat.id);
+      await ctx.runMutation(internal.telegram.storeCallback, {
+        callbackQueryId: cq.id,
+        chatId,
+        from: cq.from,
+        data: cq.data ?? "",
+        messageId: cq.message.message_id,
+        updateId,
+      });
+      return new Response(null, { status: 200 });
+    }
+
     const message = body.message;
     const chatId = message?.chat?.id != null ? String(message.chat.id) : "";
     const from = message?.from;

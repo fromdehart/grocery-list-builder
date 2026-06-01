@@ -1,7 +1,82 @@
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import * as telegramClient from "./telegramClient";
+
+export const handleCallback = internalAction({
+  args: {
+    callbackQueryId: v.string(),
+    chatId: v.string(),
+    telegramUserId: v.string(),
+    data: v.string(),
+    messageId: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const token = getToken();
+    if (!token) return;
+
+    // Parse "pick:<docId>:<idx|skip>"
+    const parts = args.data.split(":");
+    if (parts[0] !== "pick" || parts.length < 3) return;
+
+    const docId = parts[1] as Id<"pendingChoices">;
+    const selection = parts[2];
+
+    const choice = await ctx.runQuery(internal.pendingChoices.getById, { id: docId });
+
+    if (!choice) {
+      await telegramClient.answerCallbackQuery(token, args.callbackQueryId, "This choice has expired.");
+      return;
+    }
+
+    await ctx.runMutation(internal.pendingChoices.remove, { id: choice._id });
+
+    if (selection === "skip") {
+      await telegramClient.answerCallbackQuery(token, args.callbackQueryId);
+      await telegramClient.editMessageText(
+        token, args.chatId, args.messageId,
+        `⏭ Skipped "${choice.canonicalName}"`
+      );
+      return;
+    }
+
+    const idx = parseInt(selection, 10);
+    const picked = choice.options[idx];
+    if (!picked) {
+      await telegramClient.answerCallbackQuery(token, args.callbackQueryId, "Invalid selection.");
+      return;
+    }
+
+    // Save URL to item memory
+    if (choice.itemId) {
+      await ctx.runMutation(internal.householdItems.saveProductUrl, {
+        itemId: choice.itemId,
+        retailer: choice.retailer as "amazon" | "target" | "wegmans" | "costco",
+        url: picked.url,
+      });
+    }
+
+    await telegramClient.answerCallbackQuery(token, args.callbackQueryId, "Adding to cart…");
+    await telegramClient.editMessageText(
+      token, args.chatId, args.messageId,
+      `⏳ Adding "${picked.name}" to your ${choice.retailer} cart…`
+    );
+
+    const result = await ctx.runAction(internal.browserAutomation.addToCart, {
+      householdId: choice.householdId,
+      retailer: choice.retailer as "amazon" | "target" | "wegmans" | "costco",
+      productUrl: picked.url,
+      canonicalName: choice.canonicalName,
+    });
+
+    const statusLine = result.success
+      ? `✅ Added "${picked.name}" to your ${choice.retailer} cart${result.cartUrl ? `\n🛒 ${result.cartUrl}` : ""}`
+      : `❌ Failed to add "${picked.name}": ${result.error ?? "unknown error"}`;
+
+    await telegramClient.editMessageText(token, args.chatId, args.messageId, statusLine);
+  },
+});
 
 function getToken(): string {
   return process.env.TELEGRAM_BOT_TOKEN ?? "";

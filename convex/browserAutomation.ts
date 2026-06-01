@@ -50,11 +50,11 @@ export const searchProduct = internalAction({
       };
 
       return {
-        topResult: data.results?.[0] ?? null,
+        results: data.results ?? [],
         searchUrl: data.searchUrl ?? null,
       };
     } catch {
-      return { topResult: null, searchUrl: null };
+      return { results: [], searchUrl: null };
     }
   },
 });

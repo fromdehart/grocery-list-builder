@@ -44,6 +44,34 @@ export const sendMessage = action({
   },
 });
 
+export const storeCallback = internalMutation({
+  args: {
+    callbackQueryId: v.string(),
+    chatId: v.string(),
+    from: v.any(),
+    data: v.string(),
+    messageId: v.number(),
+    updateId: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("events", {
+      challengeId: TELEGRAM_CHALLENGE_ID,
+      sessionId: args.chatId,
+      eventName: "telegram_callback",
+      metadata: args,
+      timestamp: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(0, internal.botHandler.handleCallback, {
+      callbackQueryId: args.callbackQueryId,
+      chatId: args.chatId,
+      telegramUserId: String(args.from?.id ?? ""),
+      data: args.data,
+      messageId: args.messageId,
+    });
+  },
+});
+
 export const storeIncoming = internalMutation({
   args: {
     chatId: v.string(),
