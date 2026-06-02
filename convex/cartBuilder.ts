@@ -360,18 +360,23 @@ export const execute = internalAction({
         costcoCartUrl,
       });
 
-      const replyText = formatReply(parsed.items, executionResults, {
-        amazonCartUrl,
-        targetCartUrl,
-        instacartCartUrl,
-        wegmansCartUrl,
-        costcoCartUrl,
-      });
+      // Don't send a cart summary if every item is just waiting for keyboard selection
+      const pendingCount = executionResults.filter((r) => r.detail === "Waiting for your selection in Telegram").length;
+      const allPending = pendingCount === executionResults.length && executionResults.length > 0;
 
-      await ctx.runAction(internal.telegram.sendMessage, {
-        chatId: args.chatId,
-        message: replyText,
-      });
+      if (!allPending) {
+        const replyText = formatReply(parsed.items, executionResults, {
+          amazonCartUrl,
+          targetCartUrl,
+          instacartCartUrl,
+          wegmansCartUrl,
+          costcoCartUrl,
+        });
+        await ctx.runAction(internal.telegram.sendMessage, {
+          chatId: args.chatId,
+          message: replyText,
+        });
+      }
     } catch (e) {
       console.error("Cart builder error:", e);
       if (sessionId) {
