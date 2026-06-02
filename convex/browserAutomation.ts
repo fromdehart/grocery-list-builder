@@ -131,7 +131,7 @@ export const getWegmansCart = internalAction({
       });
 
       const data = (await res.json()) as {
-        items: Array<{ skuId: string; name: string; quantity: number; price: string; aisle: string | null; shelf: string | null }>;
+        items: Array<{ skuId: string; name: string; quantity: number; price: string; aisle: string | null; shelf: string | null; aisleSide: string | null; section: string | null }>;
         error?: string;
       };
 
@@ -145,6 +145,8 @@ export const getWegmansCart = internalAction({
           price: item.price,
           aisle: item.aisle,
           shelf: item.shelf,
+          aisleSide: item.aisleSide,
+          section: item.section,
         })),
         error: null,
       };

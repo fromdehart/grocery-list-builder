@@ -175,7 +175,13 @@ export const dispatch = internalAction({
         const itemLines = items.map((item) => {
           const qty = item.quantity > 1 ? ` ×${item.quantity}` : "";
           const price = item.price ? ` · ${item.price}` : "";
-          return `${escapeHtml(item.name)}${qty}${price}`;
+          const locParts = [
+            item.aisleSide,
+            item.section != null ? `Section ${item.section}` : null,
+            item.shelf != null ? `Shelf ${item.shelf}` : null,
+          ].filter(Boolean);
+          const loc = locParts.length ? `  <i>${escapeHtml(locParts.join(" · "))}</i>` : "";
+          return `${escapeHtml(item.name)}${qty}${price}${loc}`;
         });
         sections.push([header, ...itemLines].join("\n"));
       }
