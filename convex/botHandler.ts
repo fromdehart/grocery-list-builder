@@ -141,18 +141,52 @@ export const dispatch = internalAction({
         await telegramClient.sendMessage(token, args.chatId, "Your Wegmans cart is empty.");
         return null;
       }
-      const lines = result.items.map((item) => {
-        const qty = item.quantity > 1 ? ` ×${item.quantity}` : "";
-        const price = item.price ? ` — ${item.price}` : "";
-        const location = item.aisle
-          ? ` — ${item.aisle}${item.shelf ? `, Shelf ${item.shelf}` : ""}`
-          : "";
-        return `• ${item.name}${qty}${price}${location}`;
-      });
+      const AISLE_EMOJI: Record<string, string> = {
+        "bakery": "🥖", "beverage": "🥤", "dairy": "🥛", "deli": "🧀",
+        "floral": "💐", "frozen": "🧊", "meat": "🥩", "produce": "🥦",
+        "seafood": "🐟", "snack": "🍿", "bulk": "🏪", "cleaning": "🧹",
+        "paper": "🧻", "pharmacy": "💊", "baby": "🍼", "international": "🌍",
+        "natural": "🌿", "organic": "🌿", "wine": "🍷", "beer": "🍺",
+      };
+      function aisleEmoji(aisle: string | null): string {
+        if (!aisle) return "🛒";
+        const lower = aisle.toLowerCase();
+        for (const [key, emoji] of Object.entries(AISLE_EMOJI)) {
+          if (lower.includes(key)) return emoji;
+        }
+        return "🛒";
+      }
+      function escapeHtml(s: string): string {
+        return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+
+      // Group items by aisle
+      const byAisle = new Map<string, typeof result.items>();
+      for (const item of result.items) {
+        const key = item.aisle ?? "Other";
+        if (!byAisle.has(key)) byAisle.set(key, []);
+        byAisle.get(key)!.push(item);
+      }
+
+      const sections: string[] = [];
+      for (const [aisle, items] of byAisle) {
+        const emoji = aisleEmoji(aisle === "Other" ? null : aisle);
+        const header = `${emoji} <b>${escapeHtml(aisle)}</b>`;
+        const itemLines = items.map((item) => {
+          const qty = item.quantity > 1 ? ` ×${item.quantity}` : "";
+          const price = item.price ? ` · ${item.price}` : "";
+          return `${escapeHtml(item.name)}${qty}${price}`;
+        });
+        sections.push([header, ...itemLines].join("\n"));
+      }
+
+      const count = result.items.length;
+      const header = `🛒 <b>Your Wegmans cart</b> — ${count} item${count === 1 ? "" : "s"}`;
       await telegramClient.sendMessage(
         token,
         args.chatId,
-        `🛒 Your Wegmans cart — ${result.items.length} item${result.items.length === 1 ? "" : "s"}\n\n${lines.join("\n")}`
+        `${header}\n\n${sections.join("\n\n")}`,
+        "HTML"
       );
       return null;
     }

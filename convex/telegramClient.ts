@@ -38,12 +38,14 @@ async function request<T>(
 export function sendMessage(
   token: string,
   chatId: string,
-  text: string
+  text: string,
+  parseMode?: "HTML" | "MarkdownV2"
 ): Promise<ApiResult> {
   return request(token, "sendMessage", {
     chat_id: chatId,
     text,
     link_preview_options: { is_disabled: true },
+    ...(parseMode ? { parse_mode: parseMode } : {}),
   });
 }
 
