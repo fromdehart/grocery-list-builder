@@ -49,7 +49,9 @@ export function sendMessage(
   });
 }
 
-export type InlineKeyboardButton = { text: string; callback_data: string };
+export type InlineKeyboardButton =
+  | { text: string; callback_data: string }
+  | { text: string; url: string };
 export type InlineKeyboard = InlineKeyboardButton[][];
 
 export function sendMessageWithKeyboard(

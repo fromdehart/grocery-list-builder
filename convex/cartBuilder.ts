@@ -287,7 +287,8 @@ export const execute = internalAction({
 
                 const keyboard = [
                   ...search.results.map((r: { name: string; url: string }, i: number) => [
-                    { text: r.name || `Option ${i + 1}`, callback_data: `pick:${choiceId}:${i}` },
+                    { text: `✅ ${r.name || `Option ${i + 1}`}`, callback_data: `pick:${choiceId}:${i}` },
+                    { text: "🔗 View", url: r.url },
                   ]),
                   [{ text: "↩️ Skip", callback_data: `pick:${choiceId}:skip` }],
                 ];
