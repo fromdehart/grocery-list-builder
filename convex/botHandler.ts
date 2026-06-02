@@ -57,11 +57,10 @@ export const handleCallback = internalAction({
       });
     }
 
-    await telegramClient.answerCallbackQuery(token, args.callbackQueryId, "Adding to cart…");
-    await telegramClient.editMessageText(
-      token, args.chatId, args.messageId,
-      `⏳ Adding "${picked.name}" to your ${choice.retailer} cart…`
-    );
+    // Clear the keyboard immediately so no attachment is generated
+    await telegramClient.clearKeyboard(token, args.chatId, args.messageId);
+    await telegramClient.answerCallbackQuery(token, args.callbackQueryId);
+    await telegramClient.sendMessage(token, args.chatId, `⏳ Adding "${picked.name}" to your ${choice.retailer} cart…`);
 
     const result = await ctx.runAction(internal.browserAutomation.addToCart, {
       householdId: choice.householdId,
@@ -74,7 +73,7 @@ export const handleCallback = internalAction({
       ? `✅ Added "${picked.name}" to your ${choice.retailer} cart`
       : `❌ Failed to add "${picked.name}": ${result.error ?? "unknown error"}`;
 
-    await telegramClient.editMessageText(token, args.chatId, args.messageId, statusLine);
+    await telegramClient.sendMessage(token, args.chatId, statusLine);
   },
 });
 

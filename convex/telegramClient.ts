@@ -40,7 +40,11 @@ export function sendMessage(
   chatId: string,
   text: string
 ): Promise<ApiResult> {
-  return request(token, "sendMessage", { chat_id: chatId, text });
+  return request(token, "sendMessage", {
+    chat_id: chatId,
+    text,
+    link_preview_options: { is_disabled: true },
+  });
 }
 
 export type InlineKeyboardButton = { text: string; callback_data: string };
@@ -79,7 +83,20 @@ export function editMessageText(
     chat_id: chatId,
     message_id: messageId,
     text,
-    reply_markup: { inline_keyboard: [] }, // clear the keyboard
+    reply_markup: { inline_keyboard: [] },
+    link_preview_options: { is_disabled: true },
+  });
+}
+
+export function clearKeyboard(
+  token: string,
+  chatId: string,
+  messageId: number
+): Promise<ApiResult> {
+  return request(token, "editMessageReplyMarkup", {
+    chat_id: chatId,
+    message_id: messageId,
+    reply_markup: { inline_keyboard: [] },
   });
 }
 
