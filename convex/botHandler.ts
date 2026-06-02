@@ -71,7 +71,7 @@ export const handleCallback = internalAction({
     });
 
     const statusLine = result.success
-      ? `✅ Added "${picked.name}" to your ${choice.retailer} cart${result.cartUrl ? `\n🛒 ${result.cartUrl}` : ""}`
+      ? `✅ Added "${picked.name}" to your ${choice.retailer} cart`
       : `❌ Failed to add "${picked.name}": ${result.error ?? "unknown error"}`;
 
     await telegramClient.editMessageText(token, args.chatId, args.messageId, statusLine);
