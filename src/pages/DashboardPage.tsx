@@ -4,14 +4,12 @@ import { useAuth, useClerk } from "@clerk/react";
 import { useQuery } from "convex/react";
 import { Navigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
 import CreateHouseholdForm from "../components/CreateHouseholdForm";
 import HouseholdMemoryTable from "../components/HouseholdMemoryTable";
-import CartSessionsList from "../components/CartSessionsList";
-import SessionDetailDrawer from "../components/SessionDetailDrawer";
+import ItemHistoryList from "../components/ItemHistoryList";
 import HouseholdSettings from "../components/HouseholdSettings";
 
-type Tab = "memory" | "sessions" | "settings";
+type Tab = "memory" | "history" | "settings";
 
 export default function DashboardPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -22,7 +20,6 @@ export default function DashboardPage() {
     isAuthenticated ? {} : "skip"
   );
   const [activeTab, setActiveTab] = useState<Tab>("memory");
-  const [selectedSessionId, setSelectedSessionId] = useState<Id<"cartSessions"> | null>(null);
 
   if (isLoading || (isSignedIn && !isAuthenticated)) {
     return (
@@ -50,7 +47,7 @@ export default function DashboardPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "memory", label: "Memory" },
-    { id: "sessions", label: "Sessions" },
+    { id: "history", label: "History" },
     { id: "settings", label: "Settings" },
   ];
 
@@ -98,13 +95,10 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {activeTab === "sessions" && (
+        {activeTab === "history" && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="font-semibold text-gray-900 mb-4">Recent Sessions</h2>
-            <CartSessionsList
-              onSelect={setSelectedSessionId}
-              selectedId={selectedSessionId}
-            />
+            <h2 className="font-semibold text-gray-900 mb-4">Item History</h2>
+            <ItemHistoryList />
           </div>
         )}
 
@@ -116,10 +110,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <SessionDetailDrawer
-        sessionId={selectedSessionId}
-        onClose={() => setSelectedSessionId(null)}
-      />
     </div>
   );
 }

@@ -52,6 +52,21 @@ export const list = query({
   },
 });
 
+export const listItemHistory = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const householdId = await getCallerHouseholdId(ctx);
+    if (!householdId) return [];
+    const events = await ctx.db
+      .query("executionEvents")
+      .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+      .collect();
+    return events
+      .sort((a, b) => (b.executedAt ?? 0) - (a.executedAt ?? 0))
+      .slice(0, args.limit ?? 100);
+  },
+});
+
 export const getWithEvents = query({
   args: { sessionId: v.id("cartSessions") },
   handler: async (ctx, args) => {
