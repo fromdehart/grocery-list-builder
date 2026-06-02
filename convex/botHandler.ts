@@ -102,7 +102,7 @@ export const dispatch = internalAction({
       await telegramClient.sendMessage(
         token,
         args.chatId,
-        "Hi! I'm Cart Gremlin 🛒\n\nCommands:\n/list — show your item memory\n/remove <item> — remove from memory\n\nOr just send me items to add: 'add milk and eggs'"
+        "Hi! I'm Cart Gremlin 🛒\n\nCommands:\n/cart — show your Wegmans cart with store locations\n/list — show your item memory\n/remove <item> — remove from memory\n\nOr just send me items to add: 'add milk and eggs'"
       );
       return null;
     }
@@ -118,6 +118,42 @@ export const dispatch = internalAction({
         await telegramClient.sendMessage(token, args.chatId, "Sorry, you're not authorized to use this bot.");
         return null;
       }
+    }
+
+    if (cmd === "/cart") {
+      if (!household) {
+        await telegramClient.sendMessage(token, args.chatId, notConnectedMsg);
+        return null;
+      }
+      await telegramClient.sendMessage(token, args.chatId, "🔍 Checking your Wegmans cart…");
+      const result = await ctx.runAction(internal.browserAutomation.getWegmansCart, {
+        householdId: household.householdId,
+      });
+      if (result.error && result.items.length === 0) {
+        await telegramClient.sendMessage(token, args.chatId,
+          result.error === "Worker not configured"
+            ? `Playwright worker not configured — set it in Settings:\n${settingsUrl}`
+            : "Couldn't read your cart. Make sure your Wegmans session is saved in Settings."
+        );
+        return null;
+      }
+      if (result.items.length === 0) {
+        await telegramClient.sendMessage(token, args.chatId, "Your Wegmans cart is empty.");
+        return null;
+      }
+      const lines = result.items.map((item) => {
+        const qty = item.quantity > 1 ? ` (×${item.quantity})` : "";
+        const location = item.aisle
+          ? ` — ${item.aisle}${item.shelf ? `, Shelf ${item.shelf}` : ""}`
+          : "";
+        return `• ${item.name}${qty}${location}`;
+      });
+      await telegramClient.sendMessage(
+        token,
+        args.chatId,
+        `🛒 Your Wegmans cart — ${result.items.length} item${result.items.length === 1 ? "" : "s"}\n\n${lines.join("\n")}`
+      );
+      return null;
     }
 
     if (cmd === "/list") {

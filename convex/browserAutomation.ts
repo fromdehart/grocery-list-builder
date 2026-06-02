@@ -72,6 +72,90 @@ async function searchWegmansAlgolia(query: string): Promise<{ results: Array<{ n
   }
 }
 
+async function lookupPlanograms(
+  skuIds: string[]
+): Promise<Record<string, { aisle?: string; shelf?: string }>> {
+  const appId = process.env.WEGMANS_ALGOLIA_APP_ID;
+  const apiKey = process.env.WEGMANS_ALGOLIA_API_KEY;
+  if (!appId || !apiKey || skuIds.length === 0) return {};
+
+  try {
+    const filters = skuIds.map((id) => `skuId:${id}`).join(" OR ");
+    const res = await fetch(`https://${appId.toLowerCase()}-dsn.algolia.net/1/indexes/*/queries`, {
+      method: "POST",
+      headers: {
+        "X-Algolia-Application-Id": appId,
+        "X-Algolia-API-Key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requests: [{
+          indexName: "products",
+          query: "",
+          hitsPerPage: 100,
+          filters,
+          attributesToRetrieve: ["skuId", "planogram"],
+        }],
+      }),
+    });
+    const data = (await res.json()) as {
+      results: Array<{ hits: Array<{ skuId?: string; planogram?: { aisle?: string; shelf?: string } }> }>;
+    };
+    const map: Record<string, { aisle?: string; shelf?: string }> = {};
+    for (const hit of data.results?.[0]?.hits ?? []) {
+      if (hit.skuId) map[hit.skuId] = hit.planogram ?? {};
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+export const getWegmansCart = internalAction({
+  args: { householdId: v.id("households") },
+  handler: async (ctx, args) => {
+    const household = await ctx.runQuery(internal.households.getHouseholdById, {
+      householdId: args.householdId,
+    });
+    const workerUrl = household?.playwrightWorkerUrl;
+    if (!workerUrl) return { items: [], error: "Worker not configured" };
+
+    try {
+      const res = await fetch(`${workerUrl}/cart-contents`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Worker-Secret": process.env.PLAYWRIGHT_WORKER_SECRET ?? "",
+        },
+        body: JSON.stringify({ sessionCookies: household?.wegmansSessionCookies ?? "[]" }),
+      });
+
+      const data = (await res.json()) as {
+        items: Array<{ skuId: string; name: string; quantity: number }>;
+        error?: string;
+      };
+
+      const items = data.items ?? [];
+      if (items.length === 0) return { items: [], error: data.error };
+
+      const skuIds = [...new Set(items.map((i) => i.skuId))];
+      const planograms = await lookupPlanograms(skuIds);
+
+      return {
+        items: items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          aisle: planograms[item.skuId]?.aisle,
+          shelf: planograms[item.skuId]?.shelf,
+        })),
+        error: null,
+      };
+    } catch (e) {
+      return { items: [], error: "Worker unreachable" };
+    }
+  },
+});
+
 export const searchProduct = internalAction({
   args: {
     householdId: v.id("households"),
