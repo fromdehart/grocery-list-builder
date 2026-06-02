@@ -79,6 +79,7 @@ export function editMessageText(
     chat_id: chatId,
     message_id: messageId,
     text,
+    reply_markup: { inline_keyboard: [] }, // clear the keyboard
   });
 }
 
