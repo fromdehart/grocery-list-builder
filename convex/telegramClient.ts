@@ -40,13 +40,21 @@ export function sendMessage(
   chatId: string,
   text: string,
   parseMode?: "HTML" | "MarkdownV2"
-): Promise<ApiResult> {
-  return request(token, "sendMessage", {
+): Promise<ApiResult<{ message_id: number }>> {
+  return request<{ message_id: number }>(token, "sendMessage", {
     chat_id: chatId,
     text,
     link_preview_options: { is_disabled: true },
     ...(parseMode ? { parse_mode: parseMode } : {}),
   });
+}
+
+export function deleteMessage(
+  token: string,
+  chatId: string,
+  messageId: number
+): Promise<ApiResult> {
+  return request(token, "deleteMessage", { chat_id: chatId, message_id: messageId });
 }
 
 export type InlineKeyboardButton =
@@ -58,12 +66,15 @@ export function sendMessageWithKeyboard(
   token: string,
   chatId: string,
   text: string,
-  inlineKeyboard: InlineKeyboard
+  inlineKeyboard: InlineKeyboard,
+  parseMode?: "HTML" | "MarkdownV2"
 ): Promise<ApiResult<{ message_id: number }>> {
   return request<{ message_id: number }>(token, "sendMessage", {
     chat_id: chatId,
     text,
     reply_markup: { inline_keyboard: inlineKeyboard },
+    link_preview_options: { is_disabled: true },
+    ...(parseMode ? { parse_mode: parseMode } : {}),
   });
 }
 

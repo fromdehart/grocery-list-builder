@@ -9,7 +9,9 @@ const retailerValidator = v.union(
   v.literal("costco"),
 );
 
-async function searchWegmansAlgolia(query: string): Promise<{ results: Array<{ name: string; url: string }>; searchUrl: string | null }> {
+type SearchResult = { name: string; url: string; size?: string; price?: string };
+
+async function searchWegmansAlgolia(query: string): Promise<{ results: SearchResult[]; searchUrl: string | null }> {
   const appId = process.env.WEGMANS_ALGOLIA_APP_ID;
   const apiKey = process.env.WEGMANS_ALGOLIA_API_KEY;
   const searchUrl = `https://www.wegmans.com/shop/search?q=${encodeURIComponent(query)}`;
@@ -36,13 +38,13 @@ async function searchWegmansAlgolia(query: string): Promise<{ results: Array<{ n
           query: normalizedQuery,
           hitsPerPage: 50,
           filters: "fulfilmentType:instore AND excludeFromWeb:false AND isSoldAtStore:true",
-          attributesToRetrieve: ["productName", "slug", "skuId"],
+          attributesToRetrieve: ["productName", "slug", "skuId", "packSize", "price_inStore"],
         }],
       }),
     });
 
     const data = (await res.json()) as {
-      results: Array<{ hits: Array<{ productName?: string; slug?: string; skuId?: string }> }>;
+      results: Array<{ hits: Array<{ productName?: string; slug?: string; skuId?: string; packSize?: string; price_inStore?: { amount?: number } }> }>;
     };
 
     const allHits = data.results?.[0]?.hits ?? [];
@@ -58,12 +60,17 @@ async function searchWegmansAlgolia(query: string): Promise<{ results: Array<{ n
 
     console.log(`[search:wegmans:algolia] query="${normalizedQuery}" → ${hits.length} unique hits (from ${allHits.length} total)`);
 
-    const results = hits
+    const results: SearchResult[] = hits
       .filter((h) => h.slug || h.skuId)
-      .map((h) => ({
-        name: h.productName ?? "",
-        url: `https://www.wegmans.com/shop/product/${h.slug ?? h.skuId}`,
-      }));
+      .map((h) => {
+        const amount = h.price_inStore?.amount;
+        return {
+          name: h.productName ?? "",
+          url: `https://www.wegmans.com/shop/product/${h.slug ?? h.skuId}`,
+          size: h.packSize,
+          price: amount != null ? `$${amount.toFixed(2)}` : undefined,
+        };
+      });
 
     return { results, searchUrl };
   } catch (e) {

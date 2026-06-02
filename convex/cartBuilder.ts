@@ -27,36 +27,14 @@ type ExecutionResult = {
   productName?: string;
 };
 
-function formatReply(
-  items: Array<{ canonicalName: string }>,
-  results: ExecutionResult[],
-  cartUrls: {
-    amazonCartUrl?: string;
-    targetCartUrl?: string;
-    instacartCartUrl?: string;
-    wegmansCartUrl?: string;
-    costcoCartUrl?: string;
-  }
-): string {
-  const successCount = results.filter((r) => r.status === "success").length;
-  const total = results.length;
-
-  let text = total > 0
-    ? `Cart built: ${successCount}/${total} items added`
-    : "Items queued for cart";
-
-  for (const r of results) {
-    const icon = r.status === "success" ? "✅" : r.status === "skipped" ? "⏭" : "❌";
-    text += `\n${icon} ${r.canonicalName} (${r.retailer})${r.detail ? " — " + r.detail : ""}`;
-  }
-
-  if (cartUrls.amazonCartUrl) text += `\n\n🛒 Amazon: ${cartUrls.amazonCartUrl}`;
-  if (cartUrls.targetCartUrl) text += `\n🛒 Target: ${cartUrls.targetCartUrl}`;
-  if (cartUrls.wegmansCartUrl) text += `\n🛒 Wegmans: ${cartUrls.wegmansCartUrl}`;
-  if (cartUrls.costcoCartUrl) text += `\n🛒 Costco: ${cartUrls.costcoCartUrl}`;
-  if (cartUrls.instacartCartUrl) text += `\n🛒 Instacart: ${cartUrls.instacartCartUrl}`;
-
-  return text;
+function formatReply(results: ExecutionResult[]): string {
+  return results
+    .map((r) => {
+      if (r.status === "success") return `✅ Added "${r.canonicalName}" to your ${r.retailer} cart`;
+      if (r.status === "failed") return `❌ Failed to add "${r.canonicalName}": ${r.detail ?? "unknown error"}`;
+      return `⏭ Skipped "${r.canonicalName}" — ${r.detail ?? ""}`;
+    })
+    .join("\n");
 }
 
 export const execute = internalAction({
@@ -71,11 +49,9 @@ export const execute = internalAction({
 
     try {
       // Acknowledge immediately so the user knows we're working on it
-      await telegramClient.sendMessage(
-        process.env.TELEGRAM_BOT_TOKEN ?? "",
-        args.chatId,
-        "🛒 On it…"
-      );
+      const token = process.env.TELEGRAM_BOT_TOKEN ?? "";
+      const onItMsg = await telegramClient.sendMessage(token, args.chatId, "🛒 On it…");
+      const onItMsgId = onItMsg.ok ? onItMsg.result.message_id : null;
 
       sessionId = await ctx.runMutation(internal.cartSessions.internalCreate, {
         householdId: args.householdId,
@@ -281,14 +257,23 @@ export const execute = internalAction({
                   canonicalName: item.canonicalName,
                   retailer,
                   itemId: item.itemId,
-                  options: search.results,
+                  options: search.results.map((r) => ({ name: r.name, url: r.url })),
                 });
                 console.log(`[cart] pendingChoice created: ${choiceId}`);
 
+                function esc(s: string) {
+                  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                }
+                const lines = search.results.map((r: { name: string; url: string; size?: string; price?: string }, i: number) => {
+                  const meta = [r.size, r.price].filter(Boolean).join(" · ");
+                  return `<b>${i + 1}. ${esc(r.name)}</b>${meta ? `\n${esc(meta)}` : ""}`;
+                });
+                const msgText = `Which <b>${esc(item.canonicalName)}</b> from ${retailer}?\n\n${lines.join("\n\n")}`;
+
                 const keyboard = [
-                  ...search.results.map((r: { name: string; url: string }, i: number) => [
-                    { text: `✅ ${r.name || `Option ${i + 1}`}`, callback_data: `pick:${choiceId}:${i}` },
-                    { text: "🔗 View", url: r.url },
+                  ...search.results.map((_r: { name: string; url: string }, i: number) => [
+                    { text: `✅ Add #${i + 1}`, callback_data: `pick:${choiceId}:${i}` },
+                    { text: `🔗 View #${i + 1}`, url: search.results[i].url },
                   ]),
                   [{ text: "↩️ Skip", callback_data: `pick:${choiceId}:skip` }],
                 ];
@@ -296,8 +281,9 @@ export const execute = internalAction({
                 const kbResult = await telegramClient.sendMessageWithKeyboard(
                   process.env.TELEGRAM_BOT_TOKEN ?? "",
                   args.chatId,
-                  `Which "${item.canonicalName}" did you want from ${retailer}?`,
-                  keyboard
+                  msgText,
+                  keyboard,
+                  "HTML"
                 );
                 console.log(`[cart] keyboard send ok=${kbResult.ok}, error=${!kbResult.ok ? (kbResult as {error?:string}).error : "none"}`);
 
@@ -366,17 +352,15 @@ export const execute = internalAction({
       const allPending = pendingCount === executionResults.length && executionResults.length > 0;
 
       if (!allPending) {
-        const replyText = formatReply(parsed.items, executionResults, {
-          amazonCartUrl,
-          targetCartUrl,
-          instacartCartUrl,
-          wegmansCartUrl,
-          costcoCartUrl,
-        });
+        const replyText = formatReply(executionResults);
         await ctx.runAction(internal.telegram.sendMessage, {
           chatId: args.chatId,
           message: replyText,
         });
+        if (onItMsgId) await telegramClient.deleteMessage(token, args.chatId, onItMsgId);
+      } else {
+        // All pending keyboard selection — delete "On it…" so it doesn't linger
+        if (onItMsgId) await telegramClient.deleteMessage(token, args.chatId, onItMsgId);
       }
     } catch (e) {
       console.error("Cart builder error:", e);
