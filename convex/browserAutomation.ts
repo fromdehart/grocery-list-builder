@@ -131,22 +131,20 @@ export const getWegmansCart = internalAction({
       });
 
       const data = (await res.json()) as {
-        items: Array<{ skuId: string; name: string; quantity: number }>;
+        items: Array<{ skuId: string; name: string; quantity: number; price: string; aisle: string | null; shelf: string | null }>;
         error?: string;
       };
 
       const items = data.items ?? [];
-      if (items.length === 0) return { items: [], error: data.error };
-
-      const skuIds = [...new Set(items.map((i) => i.skuId))];
-      const planograms = await lookupPlanograms(skuIds);
+      if (items.length === 0) return { items: [], error: data.error ?? null };
 
       return {
         items: items.map((item) => ({
           name: item.name,
           quantity: item.quantity,
-          aisle: planograms[item.skuId]?.aisle,
-          shelf: planograms[item.skuId]?.shelf,
+          price: item.price,
+          aisle: item.aisle,
+          shelf: item.shelf,
         })),
         error: null,
       };

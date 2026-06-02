@@ -142,11 +142,12 @@ export const dispatch = internalAction({
         return null;
       }
       const lines = result.items.map((item) => {
-        const qty = item.quantity > 1 ? ` (×${item.quantity})` : "";
+        const qty = item.quantity > 1 ? ` ×${item.quantity}` : "";
+        const price = item.price ? ` — ${item.price}` : "";
         const location = item.aisle
           ? ` — ${item.aisle}${item.shelf ? `, Shelf ${item.shelf}` : ""}`
           : "";
-        return `• ${item.name}${qty}${location}`;
+        return `• ${item.name}${qty}${price}${location}`;
       });
       await telegramClient.sendMessage(
         token,
