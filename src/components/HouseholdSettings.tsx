@@ -51,8 +51,8 @@ export default function HouseholdSettings() {
   const [displayToken, setDisplayToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState(false);
 
-  const displayUrl = data?.householdId && displayToken
-    ? `${window.location.origin}/display?h=${data.householdId}&t=${displayToken}`
+  const displayUrl = data?.household._id && displayToken
+    ? `${window.location.origin}/display?h=${data.household._id}&t=${displayToken}`
     : null;
 
   return (
