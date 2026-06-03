@@ -1,5 +1,6 @@
 import { ClerkProvider, useAuth } from "@clerk/react";
-import { ConvexProvider, ConvexProviderWithClerk } from "convex/react";
+import { ConvexProvider } from "convex/react";
+import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { convex } from "./lib/convexClient";
 import LoginPage from "./pages/LoginPage";
