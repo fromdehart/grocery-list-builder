@@ -173,7 +173,15 @@ export const refreshAndSaveCart = internalAction({
       await ctx.runMutation(internal.cartSnapshots.save, {
         householdId: args.householdId,
         retailer: "wegmans",
-        items: result.items,
+        items: result.items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price ?? undefined,
+          aisle: item.aisle ?? undefined,
+          shelf: item.shelf ?? undefined,
+          aisleSide: item.aisleSide ?? undefined,
+          section: item.section ?? undefined,
+        })),
       });
     }
   },

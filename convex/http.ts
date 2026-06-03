@@ -77,4 +77,47 @@ http.route({
   }),
 });
 
+// Voice command endpoint — called by HA Assist automation
+// Treats the text exactly as if the user sent it to the Telegram bot
+http.route({
+  path: "/voice-command",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const secret = request.headers.get("X-Voice-Secret");
+    if (secret !== process.env.PLAYWRIGHT_WORKER_SECRET) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    let body: { text: string };
+    try {
+      body = (await request.json()) as typeof body;
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
+
+    if (!body.text?.trim()) {
+      return new Response("Bad Request: missing text", { status: 400 });
+    }
+
+    // Look up the household by the owner's Telegram user ID
+    const household = await ctx.runQuery(internal.households.getMyHouseholdForVoice);
+    if (!household) {
+      return new Response("No household configured", { status: 404 });
+    }
+
+    // Dispatch exactly like a Telegram message — responses go back to Telegram
+    await ctx.runAction(internal.botHandler.dispatch, {
+      chatId: household.telegramChatId,
+      telegramUserId: household.telegramUserId,
+      telegramUsername: "",
+      text: body.text.trim(),
+    });
+
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
 export default http;

@@ -98,6 +98,31 @@ export const getOrCreateDisplayToken = mutation({
   },
 });
 
+export const getMyHouseholdForVoice = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    // Find the first household member who has a Telegram user ID linked
+    const member = await ctx.db
+      .query("householdMembers")
+      .filter((q) => q.neq(q.field("telegramUserId"), undefined))
+      .first();
+    if (!member?.telegramUserId) return null;
+
+    // Find their most recent cart session to get the chat ID
+    const session = await ctx.db
+      .query("cartSessions")
+      .withIndex("by_householdId", (q) => q.eq("householdId", member.householdId))
+      .order("desc")
+      .first();
+
+    return {
+      householdId: member.householdId,
+      telegramUserId: member.telegramUserId,
+      telegramChatId: session?.telegramChatId ?? member.telegramUserId,
+    };
+  },
+});
+
 export const getByTelegramUserId = internalQuery({
   args: { telegramUserId: v.string() },
   handler: async (ctx, args) => {

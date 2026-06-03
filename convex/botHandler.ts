@@ -140,11 +140,19 @@ export const dispatch = internalAction({
         householdId: household.householdId,
       });
       if (result.items.length > 0) {
-        await ctx.runMutation(internal.cartSnapshots.save, {
+        ctx.runMutation(internal.cartSnapshots.save, {
           householdId: household.householdId,
           retailer: "wegmans",
-          items: result.items,
-        });
+          items: result.items.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price ?? undefined,
+            aisle: item.aisle ?? undefined,
+            shelf: item.shelf ?? undefined,
+            aisleSide: item.aisleSide ?? undefined,
+            section: item.section ?? undefined,
+          })),
+        }).catch((e) => console.error("[cart] snapshot save failed:", e));
       }
       if (result.error && result.items.length === 0) {
         await telegramClient.sendMessage(token, args.chatId,
