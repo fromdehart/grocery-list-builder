@@ -6,6 +6,7 @@ export default function HouseholdSettings() {
   const data = useQuery(api.households.getMyHousehold);
   const updateSettings = useMutation(api.households.updateSettings);
   const bindTelegram = useMutation(api.linkTokens.bindTelegramDirect);
+  const getOrCreateDisplayToken = useMutation(api.households.getOrCreateDisplayToken);
 
   const [playwrightWorkerUrl, setPlaywrightWorkerUrl] = useState("");
   const [amazonCookies, setAmazonCookies] = useState("");
@@ -47,20 +48,24 @@ export default function HouseholdSettings() {
 
   const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME ?? "YourGroceryBot";
 
-  const displayUrl = data?.householdId
-    ? `${window.location.origin}/display?h=${data.householdId}`
+  const [displayToken, setDisplayToken] = useState<string | null>(null);
+  const [loadingToken, setLoadingToken] = useState(false);
+
+  const displayUrl = data?.householdId && displayToken
+    ? `${window.location.origin}/display?h=${data.householdId}&t=${displayToken}`
     : null;
 
   return (
     <div className="space-y-6 max-w-2xl">
 
       {/* Cart Display */}
-      {displayUrl && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-1">Cart Display</h3>
-          <p className="text-xs text-gray-500 mb-3">
-            Open this URL on your Raspberry Pi or add it as an iframe card in Home Assistant.
-          </p>
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1">Cart Display</h3>
+        <p className="text-xs text-gray-500 mb-3">
+          Open this URL on your Raspberry Pi or add it as an iframe card in Home Assistant.
+          The URL contains a secret token — anyone with it can view your cart.
+        </p>
+        {displayUrl ? (
           <div className="flex items-center gap-2">
             <input
               readOnly
@@ -82,8 +87,24 @@ export default function HouseholdSettings() {
               Open
             </a>
           </div>
-        </div>
-      )}
+        ) : (
+          <button
+            onClick={async () => {
+              setLoadingToken(true);
+              try {
+                const token = await getOrCreateDisplayToken({});
+                setDisplayToken(token);
+              } finally {
+                setLoadingToken(false);
+              }
+            }}
+            disabled={loadingToken || !data}
+            className="px-4 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+          >
+            {loadingToken ? "Generating…" : "Generate Display URL"}
+          </button>
+        )}
+      </div>
 
       {/* Browser Automation */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">

@@ -77,6 +77,27 @@ export const updateSettings = mutation({
   },
 });
 
+export const getOrCreateDisplayToken = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError("Not authenticated");
+
+    const member = await ctx.db
+      .query("householdMembers")
+      .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+      .first();
+    if (!member) throw new ConvexError("No household found");
+
+    const household = await ctx.db.get(member.householdId);
+    if (household?.displayToken) return household.displayToken;
+
+    const token = crypto.randomUUID();
+    await ctx.db.patch(member.householdId, { displayToken: token });
+    return token;
+  },
+});
+
 export const getByTelegramUserId = internalQuery({
   args: { telegramUserId: v.string() },
   handler: async (ctx, args) => {

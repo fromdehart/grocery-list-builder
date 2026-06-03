@@ -50,10 +50,12 @@ export const getByHousehold = internalQuery({
   },
 });
 
-// Public query for the display — no auth needed since it's identified by householdId
+// Public query — requires a valid displayToken to prevent enumeration
 export const getForDisplay = query({
-  args: { householdId: v.id("households"), retailer: v.string() },
+  args: { householdId: v.id("households"), retailer: v.string(), token: v.string() },
   handler: async (ctx, args) => {
+    const household = await ctx.db.get(args.householdId);
+    if (!household?.displayToken || household.displayToken !== args.token) return null;
     return ctx.db
       .query("cartSnapshots")
       .withIndex("by_household_retailer", (q) =>

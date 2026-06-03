@@ -33,16 +33,17 @@ function relativeTime(ts: number) {
 export default function CartDisplayPage() {
   const [params] = useSearchParams();
   const householdId = params.get("h") as Id<"households"> | null;
+  const token = params.get("t");
 
   const snapshot = useQuery(
     api.cartSnapshots.getForDisplay,
-    householdId ? { householdId, retailer: "wegmans" } : "skip"
+    householdId && token ? { householdId, retailer: "wegmans", token } : "skip"
   );
 
-  if (!householdId) {
+  if (!householdId || !token) {
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <p className="text-gray-500">No household ID provided. Add <code>?h=&lt;id&gt;</code> to the URL.</p>
+        <p className="text-gray-500">Invalid display URL. Generate one from the Settings page.</p>
       </div>
     );
   }
