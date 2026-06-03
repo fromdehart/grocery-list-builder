@@ -143,4 +143,19 @@ export default defineSchema({
     expiresAt: v.number(),
     used: v.boolean(),
   }).index("by_token", ["token"]),
+
+  cartSnapshots: defineTable({
+    householdId: v.id("households"),
+    retailer: v.string(),
+    items: v.array(v.object({
+      name: v.string(),
+      quantity: v.number(),
+      price: v.optional(v.string()),
+      aisle: v.optional(v.string()),
+      shelf: v.optional(v.string()),
+      aisleSide: v.optional(v.string()),
+      section: v.optional(v.string()),
+    })),
+    updatedAt: v.number(),
+  }).index("by_household_retailer", ["householdId", "retailer"]),
 });

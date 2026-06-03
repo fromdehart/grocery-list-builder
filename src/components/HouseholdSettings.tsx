@@ -47,8 +47,43 @@ export default function HouseholdSettings() {
 
   const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME ?? "YourGroceryBot";
 
+  const displayUrl = data?.householdId
+    ? `${window.location.origin}/display?h=${data.householdId}`
+    : null;
+
   return (
     <div className="space-y-6 max-w-2xl">
+
+      {/* Cart Display */}
+      {displayUrl && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="font-semibold text-gray-900 mb-1">Cart Display</h3>
+          <p className="text-xs text-gray-500 mb-3">
+            Open this URL on your Raspberry Pi or add it as an iframe card in Home Assistant.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={displayUrl}
+              className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-700 select-all"
+            />
+            <button
+              onClick={() => navigator.clipboard.writeText(displayUrl)}
+              className="px-3 py-2 text-xs rounded-lg border border-gray-300 hover:bg-gray-50 shrink-0"
+            >
+              Copy
+            </button>
+            <a
+              href={displayUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-2 text-xs rounded-lg bg-green-600 text-white hover:bg-green-700 shrink-0"
+            >
+              Open
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Browser Automation */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">

@@ -328,6 +328,11 @@ export const execute = internalAction({
             status: result.success ? "success" : "failed",
             detail: result.error ?? undefined,
           });
+          if (result.success && retailer === "wegmans") {
+            await ctx.scheduler.runAfter(0, internal.browserAutomation.refreshAndSaveCart, {
+              householdId: args.householdId,
+            });
+          }
         }
       }
 

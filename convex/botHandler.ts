@@ -76,7 +76,14 @@ export const handleCallback = internalAction({
 
     await telegramClient.sendMessage(token, args.chatId, statusLine);
     if (addingMsgId) await telegramClient.deleteMessage(token, args.chatId, addingMsgId);
-    if (result.success) await telegramClient.deleteMessage(token, args.chatId, args.messageId);
+    if (result.success) {
+      await telegramClient.deleteMessage(token, args.chatId, args.messageId);
+      if (choice.retailer === "wegmans") {
+        await ctx.scheduler.runAfter(0, internal.browserAutomation.refreshAndSaveCart, {
+          householdId: choice.householdId,
+        });
+      }
+    }
   },
 });
 
@@ -132,6 +139,13 @@ export const dispatch = internalAction({
       const result = await ctx.runAction(internal.browserAutomation.getWegmansCart, {
         householdId: household.householdId,
       });
+      if (result.items.length > 0) {
+        await ctx.runMutation(internal.cartSnapshots.save, {
+          householdId: household.householdId,
+          retailer: "wegmans",
+          items: result.items,
+        });
+      }
       if (result.error && result.items.length === 0) {
         await telegramClient.sendMessage(token, args.chatId,
           result.error === "Worker not configured"

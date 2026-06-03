@@ -163,6 +163,22 @@ export const getWegmansCart = internalAction({
   },
 });
 
+export const refreshAndSaveCart = internalAction({
+  args: { householdId: v.id("households") },
+  handler: async (ctx, args) => {
+    const result = await ctx.runAction(internal.browserAutomation.getWegmansCart, {
+      householdId: args.householdId,
+    });
+    if (result.items.length > 0) {
+      await ctx.runMutation(internal.cartSnapshots.save, {
+        householdId: args.householdId,
+        retailer: "wegmans",
+        items: result.items,
+      });
+    }
+  },
+});
+
 export const searchProduct = internalAction({
   args: {
     householdId: v.id("households"),
